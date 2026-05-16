@@ -131,27 +131,21 @@ def main():
     rail = railways[~hsr_mask]
 
     # Cities: require Claude translation + romanised name, population >= 1M.
+    # Allowlisted cities (always included regardless of neighbours).
+    ALLOWLIST = {"Hong Kong", "Taipei"}
+
     cities = places[places["place"] == "city"].copy()
-    cities = cities[cities["population"].notna() & (cities["population"] >= 1_000_000)]
+    cities = cities[cities["population"].notna() & (cities["population"] > 0)]
     cities["_translation"]     = cities.apply(_translation, axis=1)
     cities["_transliteration"] = cities.apply(_transliteration, axis=1)
     has_translation = cities["name_eng"].notna() & (cities["name_eng"].astype(str).str.strip() != "")
     has_translit    = cities["_transliteration"] != ""
-    cities = cities[has_translation & has_translit].copy()
-    cities = cities.sort_values("population", ascending=False)
-
-    # Spatial thinning: walk cities largest→smallest; skip any city whose
-    # point lies within MIN_LABEL_DIST of an already-kept city.
-    # 80 km in projected metres keeps clusters (Pearl River Delta etc.) sparse.
-    MIN_LABEL_DIST = 80_000
-    kept_rows, kept_geoms = [], []
-    for _, row in cities.iterrows():
-        pt = row.geometry
-        if all(pt.distance(g) >= MIN_LABEL_DIST for g in kept_geoms):
-            kept_rows.append(row)
-            kept_geoms.append(pt)
-    cities = gpd.GeoDataFrame(kept_rows, crs=cities.crs)
-    cities = cities.sort_values("population", ascending=False)
+    has_labels      = has_translation & has_translit
+    in_allowlist    = cities["name:en"].isin(ALLOWLIST)
+    cities = cities[has_labels & ((cities["population"] >= 1_000_000) | in_allowlist)].copy()
+    # Sort: allowlist cities first so they are always accepted, then by population
+    cities["_allow"] = cities["name:en"].isin(ALLOWLIST).astype(int)
+    cities = cities.sort_values(["_allow", "population"], ascending=[False, False])
 
     print(f"  ocean polygons:  {len(ocean)}")
     print(f"  country borders: {len(countries)}")
@@ -224,96 +218,84 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=5)
 
-    # ── City dots + translation labels ───────────────────────────────────────
+    # ── City labels — greedy bbox collision detection ─────────────────────────
     # Strategy:
-    #   1. Draw dots and place translation (main) text objects.
-    #   2. Run adjustText to push overlapping labels apart (no arrows).
-    #   3. Draw canvas to get final bounding boxes.
-    #   4. Place each transliteration text flush against the top of its
-    #      adjusted translation — they always appear as one tight unit.
+    #   1. Place every candidate label invisibly at a fixed offset from its dot.
+    #   2. Draw canvas once to get real rendered bounding boxes.
+    #   3. Walk cities largest-first (allowlist first); accept a label only if
+    #      its bbox (expanded for breathing room + transliteration height) does
+    #      not overlap any already-accepted bbox.
+    #   4. Make accepted labels visible; add transliteration flush above each.
+    # Result: zero overlaps guaranteed, labels stay next to their dots.
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
+    inv = ax.transData.inverted()
 
-    trans_texts = []   # Text objects for adjust_text
-    trans_meta  = []   # (sz_small, translit) paired with trans_texts
-    city_xs, city_ys = [], []
-
+    # Place all candidates invisibly
+    candidates = []
     for _, row in cities.iterrows():
         pop = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
-
         if not (xmin < x < xmax and ymin < y < ymax):
             continue
-
         sz_main, sz_small = _font_sizes(pop)
         translation = row["_translation"]
         translit    = row["_transliteration"]
-
         if not translation:
             continue
-
-        # Dot
-        dot_size = 3.0 if pop >= 1_000_000 else 1.8
-        ax.plot(x, y, "o",
-                markersize=dot_size,
-                color=COL_DOT,
-                markeredgecolor="#ffffff",
-                markeredgewidth=0.35,
-                zorder=8)
-
-        # Translation text (will be repositioned by adjust_text)
         t = ax.text(x, y, translation,
                     fontsize=sz_main,
                     color=COL_LABEL,
                     fontweight="bold" if pop >= 1_000_000 else "normal",
                     ha="left", va="bottom",
                     path_effects=buf,
-                    zorder=9)
-        trans_texts.append(t)
-        trans_meta.append((sz_small, translit))
-        city_xs.append(x)
-        city_ys.append(y)
+                    zorder=9,
+                    visible=False)
+        candidates.append((t, pop, x, y, sz_main, sz_small, translit,
+                           row.get("name:en", "") in ALLOWLIST))
 
-    # Push overlapping labels apart (no arrowprops — FancyArrowPatch is
-    # incompatible with projected transforms; we draw leader lines manually below)
-    adjust_text(
-        trans_texts,
-        x=city_xs, y=city_ys,
-        ax=ax,
-        expand=(1.1, 1.2),
-        force_text=(0.2, 0.4),
-        force_points=(0.1, 0.2),
-    )
-
-    # Render canvas so bounding boxes are computed at final label positions
+    # Draw once to compute bounding boxes
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    inv = ax.transData.inverted()
 
-    # Draw leader lines manually: city dot → label anchor, only when the label
-    # has been pushed more than 15 km away from its city point.
-    leader_threshold = (xmax - xmin) * 0.015
-    for i, t in enumerate(trans_texts):
-        lx, ly = t.get_position()
-        ox, oy = city_xs[i], city_ys[i]
-        if ((lx - ox) ** 2 + (ly - oy) ** 2) ** 0.5 > leader_threshold:
-            ax.plot([ox, lx], [oy, ly],
-                    color=COL_LEADER, lw=0.5, zorder=8,
-                    solid_capstyle="round")
+    accepted_bboxes = []   # display-coord bboxes of accepted labels
+    accepted = []          # (t, x, y, sz_small, translit)
 
-    # Place transliteration flush above each adjusted translation label
-    for t, (sz_small, translit) in zip(trans_texts, trans_meta):
-        if not translit or translit == t.get_text():
-            continue
-        bbox = t.get_window_extent(renderer=renderer)
-        x_data, _ = t.get_position()
-        # Convert top edge of translation bbox from display → data coords
-        _, y_top = inv.transform((bbox.x0, bbox.y1))
-        ax.text(x_data, y_top, translit,
-                fontsize=sz_small,
-                color=COL_LABEL_SMALL,
-                ha=t.get_ha(), va="bottom",
-                path_effects=buf,
-                zorder=9)
+    for t, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
+        raw_bb = t.get_window_extent(renderer=renderer)
+        # Expand: 10 % horizontal breathing room + 80 % vertical to cover the
+        # transliteration line that will sit above the translation.
+        bb = raw_bb.expanded(1.10, 1.80)
+        if is_allowlist or not any(bb.overlaps(ex) for ex in accepted_bboxes):
+            t.set_visible(True)
+            accepted_bboxes.append(bb)
+            accepted.append((t, pop, cx, cy, sz_small, translit))
+
+    print(f"  labels placed:   {len(accepted)}")
+
+    # Draw dots and transliterations for accepted labels
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+
+    for t, pop, cx, cy, sz_small, translit in accepted:
+        dot_size = 3.0 if pop >= 1_000_000 else 1.8
+        ax.plot(cx, cy, "o",
+                markersize=dot_size,
+                color=COL_DOT,
+                markeredgecolor="#ffffff",
+                markeredgewidth=0.35,
+                zorder=8)
+
+        # Transliteration flush above translation
+        if translit and translit != t.get_text():
+            bb = t.get_window_extent(renderer=renderer)
+            x_data, _ = t.get_position()
+            _, y_top = inv.transform((bb.x0, bb.y1))
+            ax.text(x_data, y_top, translit,
+                    fontsize=sz_small,
+                    color=COL_LABEL_SMALL,
+                    ha=t.get_ha(), va="bottom",
+                    path_effects=buf,
+                    zorder=9)
 
     # ── Save ──────────────────────────────────────────────────────────────────
     print(f"Rendering → {out_path}  ({args.dpi} dpi)")
