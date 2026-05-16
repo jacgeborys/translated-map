@@ -252,24 +252,32 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=3.2)
 
-    # ── City labels ───────────────────────────────────────────────────────────
-    # Algorithm (two-stage):
-    #   1. Spatial thinning — within THIN_M radius keep only the dominant city,
-    #      so dense clusters (PRD, YRD) are pre-pruned before placement.
-    #   2. Greedy 3-position placement — try NE / N / NW anchors (upper
-    #      semicircle only so translit is always above translation).
-    #      Skip city if all 3 positions collide.
-    #      All variants of rejected cities are explicitly hidden (bug fix).
-    # Leader line always drawn from dot to accepted anchor.
+    # ── City labels — force-directed placement ────────────────────────────────
+    # Stage 1: spatial thinning (60 km) — suppress weaker city when two are
+    #          too close, so dense clusters are pre-reduced.
+    # Stage 2: place every surviving label at its preferred NE position,
+    #          measure bboxes in data units (metres, ESRI:102012), then run
+    #          N_ITER rounds of physics:
+    #            • Repulsion: overlapping pairs are pushed apart symmetrically
+    #              along the axis of smaller penetration — both labels move.
+    #            • Spring: each label is weakly pulled back toward its preferred
+    #              position so labels don't drift further than necessary.
+    # Stage 3: update text anchors to final positions, flip ha left↔right if a
+    #          label drifted past its dot, draw leader lines dot→bbox edge.
+    # Result: all labels separated with symmetric displacement; dense coastal
+    #         clusters (PRD) naturally spill into the adjacent sea.
 
-    THIN_M   = 60_000   # thinning radius in metres (~60 km)
-    EXPAND_H = 1.08     # bbox horizontal breathing room
-    EXPAND_V = 1.70     # bbox vertical room (covers translit + gap)
+    THIN_M   = 60_000   # thinning radius (m)
+    N_ITER   = 150      # physics iterations
+    SPRING_K = 0.06     # fraction pulled toward preferred each iteration
+    BUF_M    = 1_000    # extra separation buffer beyond bbox edge (m)
+    PAD      = 0.12     # additional fractional padding on half-extents
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
     inv = ax.transData.inverted()
 
-    # Stage 1: spatial thinning (cities already sorted: allowlist first, pop desc)
+    # ── Stage 1: spatial thinning ─────────────────────────────────────────────
+    # cities already sorted: allowlist first, then population descending.
     geoms_all = list(cities.geometry)
     excl = set()
     for i in range(len(cities)):
@@ -282,18 +290,13 @@ def main():
     cities_thin = cities.iloc[[k for k in range(len(cities)) if k not in excl]]
     print(f"  cities after thinning: {len(cities_thin)}")
 
-    # Stage 2: 3-position greedy placement
+    # Preferred label offset from dot (NE direction)
     off_x = (xmax - xmin) * 0.006
     off_y = (ymax - ymin) * 0.004
 
-    # (delta_x, delta_y, ha, va) — upper semicircle only
-    POSITIONS = [
-        ( off_x, off_y * 0.5, "left",   "bottom"),  # NE (preferred)
-        (     0, off_y,       "center", "bottom"),  # N
-        (-off_x, off_y * 0.5, "right",  "bottom"),  # NW
-    ]
-
-    candidates = []
+    # ── Stage 2: place at preferred positions and measure bboxes ──────────────
+    city_info = []
+    texts = []
     for _, row in cities_thin.iterrows():
         pop  = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
@@ -304,68 +307,107 @@ def main():
         translit    = row["_transliteration"]
         if not translation:
             continue
-        variants = []
-        for dx, dy, ha, va in POSITIONS:
-            t = ax.text(x + dx, y + dy, translation,
-                        fontsize=sz_main, color=COL_LABEL,
-                        fontweight="bold" if pop >= 1_000_000 else "normal",
-                        ha=ha, va=va, path_effects=buf, zorder=9, visible=True)
-            variants.append((t, x + dx, y + dy, ha))
-        candidates.append((variants, pop, x, y, sz_main, sz_small,
-                            translit, row.get("name:en", "") in ALLOWLIST))
+        t = ax.text(x + off_x, y + off_y, translation,
+                    fontsize=sz_main, color=COL_LABEL,
+                    fontweight="bold" if pop >= 1_000_000 else "normal",
+                    ha="left", va="bottom",
+                    path_effects=buf, zorder=9, visible=True)
+        texts.append(t)
+        city_info.append({"cx": x, "cy": y, "translit": translit,
+                           "pop": pop, "sz_small": sz_small})
 
-    print(f"  label candidates: {len(candidates)}")
+    print(f"  label candidates: {len(texts)}")
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
-    accepted_bboxes = []
-    accepted = []
+    # Convert display bboxes → data-unit centres and half-extents
+    lbl_cx, lbl_cy = [], []       # label box centre (data units)
+    lbl_hw, lbl_hh = [], []       # half-width / half-height (padded)
+    pref_cx, pref_cy = [], []     # preferred centre (spring target)
 
-    for variants, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
-        best_t = best_bb = best_tx = best_ty = None
-        best_score = float("inf")
-        for t, tx, ty, ha in variants:
-            raw_bb = t.get_window_extent(renderer=renderer)
-            bb     = raw_bb.expanded(EXPAND_H, EXPAND_V)
-            score  = sum(1 for ex in accepted_bboxes if bb.overlaps(ex))
-            if score < best_score:
-                best_score, best_t, best_bb = score, t, bb
-                best_tx, best_ty = tx, ty
+    for t, d in zip(texts, city_info):
+        bb   = t.get_window_extent(renderer=renderer)
+        x0d, y0d = inv.transform((bb.x0, bb.y0))
+        x1d, y1d = inv.transform((bb.x1, bb.y1))
+        w, h = abs(x1d - x0d), abs(y1d - y0d)
+        # anchor is bottom-left (ha=left, va=bottom) → centre offset by (w/2, h/2)
+        cx = d["cx"] + off_x + w / 2
+        cy = d["cy"] + off_y + h / 2
+        lbl_cx.append(cx);   lbl_cy.append(cy)
+        lbl_hw.append(w / 2 * (1 + PAD))
+        lbl_hh.append(h / 2 * (1 + PAD))
+        pref_cx.append(cx);  pref_cy.append(cy)
 
-        if is_allowlist or best_score == 0:
-            best_t.set_visible(True)
-            accepted_bboxes.append(best_bb)
-            accepted.append((best_t, pop, cx, cy, best_tx, best_ty,
-                             sz_small, translit))
-            for t, tx, ty, ha in variants:
-                if t is not best_t:
-                    t.set_visible(False)
-        else:
-            for t, tx, ty, ha in variants:   # hide ALL variants of rejected cities
-                t.set_visible(False)
+    # ── Physics loop ──────────────────────────────────────────────────────────
+    n = len(texts)
+    print(f"  running {N_ITER} physics iterations for {n} labels...")
+    for _ in range(N_ITER):
+        # Pairwise repulsion: push overlapping pairs apart symmetrically
+        for i in range(n):
+            for j in range(i + 1, n):
+                dx = lbl_cx[i] - lbl_cx[j]
+                dy = lbl_cy[i] - lbl_cy[j]
+                ox = (lbl_hw[i] + lbl_hw[j]) - abs(dx)
+                oy = (lbl_hh[i] + lbl_hh[j]) - abs(dy)
+                if ox > 0 and oy > 0:
+                    # Resolve along the axis with less penetration
+                    if ox <= oy:
+                        push = ox / 2 + BUF_M
+                        sign = 1 if dx >= 0 else -1
+                        lbl_cx[i] += sign * push
+                        lbl_cx[j] -= sign * push
+                    else:
+                        push = oy / 2 + BUF_M
+                        sign = 1 if dy >= 0 else -1
+                        lbl_cy[i] += sign * push
+                        lbl_cy[j] -= sign * push
+        # Spring: pull each label back toward its preferred position
+        for i in range(n):
+            lbl_cx[i] += (pref_cx[i] - lbl_cx[i]) * SPRING_K
+            lbl_cy[i] += (pref_cy[i] - lbl_cy[i]) * SPRING_K
 
-    print(f"  labels placed:   {len(accepted)}")
+    # ── Stage 3: update text positions, draw dots / leaders / translits ───────
+    for i, (t, d) in enumerate(zip(texts, city_info)):
+        hw = lbl_hw[i] / (1 + PAD)   # actual (unpadded) half-extents
+        hh = lbl_hh[i] / (1 + PAD)
+        # Flip ha if label drifted to the other side of the dot
+        ha    = "left"  if lbl_cx[i] >= d["cx"] else "right"
+        ax_x  = lbl_cx[i] - hw if ha == "left" else lbl_cx[i] + hw
+        ax_y  = lbl_cy[i] - hh   # va="bottom"
+        t.set_position((ax_x, ax_y))
+        t.set_ha(ha)
+
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
+    print(f"  labels placed: {n}")
 
-    for best_t, pop, cx, cy, tx, ty, sz_small, translit in accepted:
-        dot_size = 3.0 if pop >= 1_000_000 else 1.8
-        ax.plot(cx, cy, "o",
+    for i, (t, d) in enumerate(zip(texts, city_info)):
+        hw = lbl_hw[i] / (1 + PAD)
+        hh = lbl_hh[i] / (1 + PAD)
+        cx_dot, cy_dot = d["cx"], d["cy"]
+
+        # City dot
+        dot_size = 3.0 if d["pop"] >= 1_000_000 else 1.8
+        ax.plot(cx_dot, cy_dot, "o",
                 markersize=dot_size, color=COL_DOT,
                 markeredgecolor="#ffffff", markeredgewidth=0.35, zorder=8)
 
-        # Leader line: dot → label anchor
-        ax.plot([cx, tx], [cy, ty],
+        # Leader line: dot → nearest point on label bbox edge
+        bx0, bx1 = lbl_cx[i] - hw, lbl_cx[i] + hw
+        by0, by1 = lbl_cy[i] - hh, lbl_cy[i] + hh
+        near_x = max(bx0, min(cx_dot, bx1))
+        near_y = max(by0, min(cy_dot, by1))
+        ax.plot([cx_dot, near_x], [cy_dot, near_y],
                 color=COL_LEADER, linewidth=1.0,
                 solid_capstyle="round", zorder=7)
 
-        # Transliteration always above translation (upper anchors guarantee this)
-        if translit and translit != best_t.get_text():
-            bb = best_t.get_window_extent(renderer=renderer)
+        # Transliteration always above translation
+        if d["translit"] and d["translit"] != t.get_text():
+            bb = t.get_window_extent(renderer=renderer)
             _, y_top = inv.transform((bb.x0, bb.y1))
-            ax.text(tx, y_top, translit,
-                    fontsize=sz_small, color=COL_LABEL_SMALL,
-                    ha=best_t.get_ha(), va="bottom",
+            ax.text(t.get_position()[0], y_top, d["translit"],
+                    fontsize=d["sz_small"], color=COL_LABEL_SMALL,
+                    ha=t.get_ha(), va="bottom",
                     path_effects=buf, zorder=9)
 
     # ── Save ──────────────────────────────────────────────────────────────────
