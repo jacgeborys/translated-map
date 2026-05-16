@@ -175,6 +175,7 @@ def main():
     pad_y = (ymax - ymin) * 0.01
     xmin -= pad_x; xmax += pad_x
     ymin -= pad_y; ymax += pad_y
+    xmin += 300_000   # crop 300 km from the left edge
 
     # Clip ocean to extent for speed
     from shapely.geometry import box as shapely_box
@@ -239,7 +240,7 @@ def main():
     countries.plot(ax=ax, facecolor="none", edgecolor=COL_BORDER,
                    linewidth=0.8, zorder=4)
     for _c in ax.collections[_n:]:
-        _c.set_path_effects([pe.withStroke(linewidth=3.5, foreground="#ffffff")])
+        _c.set_path_effects([pe.withStroke(linewidth=3.5, foreground="#f0c0d0")])
 
     if not rail.empty:
         rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, zorder=3)
@@ -251,20 +252,24 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=5)
 
-    # ── City labels — greedy bbox collision detection ─────────────────────────
-    # Strategy:
-    #   1. Place every candidate label invisibly at a fixed offset from its dot.
-    #   2. Draw canvas once to get real rendered bounding boxes.
-    #   3. Walk cities largest-first (allowlist first); accept a label only if
-    #      its bbox (expanded for breathing room + transliteration height) does
-    #      not overlap any already-accepted bbox.
-    #   4. Make accepted labels visible; add transliteration flush above each.
-    # Result: zero overlaps guaranteed, labels stay next to their dots.
+    # ── City labels — greedy bbox collision detection with 4-quadrant placement ─
+    # For each candidate city, four label anchors are tried (upper-right,
+    # lower-right, upper-left, lower-left).  The anchor with the fewest bbox
+    # collisions is accepted; ties resolved by anchor priority order.
+    # Allowlist cities always pass regardless of collisions.
+    ANCHORS = [
+        ("left",  "bottom"),   # upper-right  (preferred)
+        ("left",  "top"),      # lower-right
+        ("right", "bottom"),   # upper-left
+        ("right", "top"),      # lower-left
+    ]
+
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
     inv = ax.transData.inverted()
+    fw = "bold"
 
-    # Place all candidates visibly so get_window_extent returns real bboxes
-    candidates = []
+    # Place all anchor variants visibly so get_window_extent returns real bboxes
+    candidates = []   # list of (anchor_texts, pop, cx, cy, sz_main, sz_small, translit, is_allowlist)
     for _, row in cities.iterrows():
         pop = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
@@ -275,36 +280,49 @@ def main():
         translit    = row["_transliteration"]
         if not translation:
             continue
-        t = ax.text(x, y, translation,
-                    fontsize=sz_main,
-                    color=COL_LABEL,
-                    fontweight="bold" if pop >= 1_000_000 else "normal",
-                    ha="left", va="bottom",
-                    path_effects=buf,
-                    zorder=9,
-                    visible=True)
-        candidates.append((t, pop, x, y, sz_main, sz_small, translit,
-                           row.get("name:en", "") in ALLOWLIST))
+        anchor_texts = []
+        for ha, va in ANCHORS:
+            t = ax.text(x, y, translation,
+                        fontsize=sz_main,
+                        color=COL_LABEL,
+                        fontweight=fw if pop >= 1_000_000 else "normal",
+                        ha=ha, va=va,
+                        path_effects=buf,
+                        zorder=9,
+                        visible=True)
+            anchor_texts.append((t, ha, va))
+        candidates.append((anchor_texts, pop, x, y, sz_main, sz_small, translit,
+                            row.get("name:en", "") in ALLOWLIST))
 
     print(f"  label candidates: {len(candidates)}")
 
-    # Draw once so the renderer can compute real font-metric bboxes
+    # Draw once so the renderer has real font-metric bboxes for every anchor
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
-    accepted_bboxes = []   # display-coord bboxes of accepted labels
-    accepted = []          # (t, pop, x, y, sz_small, translit)
+    accepted_bboxes = []
+    accepted = []   # (best_t, pop, cx, cy, sz_small, translit)
 
-    for t, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
-        raw_bb = t.get_window_extent(renderer=renderer)
-        # Expand: 10 % horizontal breathing room + 80 % vertical to cover the
-        # transliteration line that will sit above the translation.
-        bb = raw_bb.expanded(1.05, 1.35)
-        if is_allowlist or not any(bb.overlaps(ex) for ex in accepted_bboxes):
-            accepted_bboxes.append(bb)
-            accepted.append((t, pop, cx, cy, sz_small, translit))
-        else:
-            t.set_visible(False)
+    for anchor_texts, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
+        # Score each anchor by number of collisions with already-accepted bboxes
+        best_t = best_bb = None
+        best_score = float("inf")
+        for t, ha, va in anchor_texts:
+            raw_bb = t.get_window_extent(renderer=renderer)
+            bb = raw_bb.expanded(1.05, 1.35)
+            score = sum(1 for ex in accepted_bboxes if bb.overlaps(ex))
+            if score < best_score:
+                best_score, best_t, best_bb = score, t, bb
+
+        # Accept if best anchor has no collisions, or city is allowlisted
+        if is_allowlist or best_score == 0:
+            best_t.set_visible(True)
+            accepted_bboxes.append(best_bb)
+            accepted.append((best_t, pop, cx, cy, sz_small, translit))
+        # Hide all anchor variants (accepted one re-shown above; rejected stay hidden)
+        for t, ha, va in anchor_texts:
+            if t is not best_t or not best_t.get_visible():
+                t.set_visible(False)
 
     print(f"  labels placed:   {len(accepted)}")
 
@@ -312,7 +330,7 @@ def main():
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
-    for t, pop, cx, cy, sz_small, translit in accepted:
+    for best_t, pop, cx, cy, sz_small, translit in accepted:
         dot_size = 3.0 if pop >= 1_000_000 else 1.8
         ax.plot(cx, cy, "o",
                 markersize=dot_size,
@@ -321,17 +339,25 @@ def main():
                 markeredgewidth=0.35,
                 zorder=8)
 
-        # Transliteration flush above translation
-        if translit and translit != t.get_text():
-            bb = t.get_window_extent(renderer=renderer)
-            x_data, _ = t.get_position()
-            _, y_top = inv.transform((bb.x0, bb.y1))
-            ax.text(x_data, y_top, translit,
-                    fontsize=sz_small,
-                    color=COL_LABEL_SMALL,
-                    ha=t.get_ha(), va="bottom",
-                    path_effects=buf,
-                    zorder=9)
+        # Transliteration flush against the translation (above or below
+        # depending on which quadrant the label landed in)
+        if translit and translit != best_t.get_text():
+            bb = best_t.get_window_extent(renderer=renderer)
+            x_data, _ = best_t.get_position()
+            if best_t.get_va() == "bottom":
+                # label extends upward → put translit above it
+                _, y_edge = inv.transform((bb.x0, bb.y1))
+                ax.text(x_data, y_edge, translit,
+                        fontsize=sz_small, color=COL_LABEL_SMALL,
+                        ha=best_t.get_ha(), va="bottom",
+                        path_effects=buf, zorder=9)
+            else:
+                # label extends downward → put translit below it
+                _, y_edge = inv.transform((bb.x0, bb.y0))
+                ax.text(x_data, y_edge, translit,
+                        fontsize=sz_small, color=COL_LABEL_SMALL,
+                        ha=best_t.get_ha(), va="top",
+                        path_effects=buf, zorder=9)
 
     # ── Save ──────────────────────────────────────────────────────────────────
     print(f"Rendering → {out_path}  ({args.dpi} dpi)")
