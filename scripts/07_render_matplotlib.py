@@ -195,10 +195,10 @@ def main():
 
     # ── Draw layers ───────────────────────────────────────────────────────────
     if not ocean_clip.empty:
-        ocean_clip.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
+        ocean_clip.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=4.5)
 
     if not water_bodies.empty:
-        water_bodies.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
+        water_bodies.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=4.5)
 
     # WorldCover — very pale land-cover tints under hillshade
     if WORLDCOVER.exists():
@@ -235,8 +235,11 @@ def main():
     except Exception as e:
         print(f"  hillshade skipped: {e}")
 
+    _n = len(ax.collections)
     countries.plot(ax=ax, facecolor="none", edgecolor=COL_BORDER,
                    linewidth=0.8, zorder=4)
+    for _c in ax.collections[_n:]:
+        _c.set_path_effects([pe.withStroke(linewidth=3.5, foreground="#ffffff")])
 
     if not rail.empty:
         rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, zorder=3)
@@ -283,6 +286,8 @@ def main():
         candidates.append((t, pop, x, y, sz_main, sz_small, translit,
                            row.get("name:en", "") in ALLOWLIST))
 
+    print(f"  label candidates: {len(candidates)}")
+
     # Draw once so the renderer can compute real font-metric bboxes
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -294,7 +299,7 @@ def main():
         raw_bb = t.get_window_extent(renderer=renderer)
         # Expand: 10 % horizontal breathing room + 80 % vertical to cover the
         # transliteration line that will sit above the translation.
-        bb = raw_bb.expanded(1.10, 1.80)
+        bb = raw_bb.expanded(1.05, 1.35)
         if is_allowlist or not any(bb.overlaps(ex) for ex in accepted_bboxes):
             accepted_bboxes.append(bb)
             accepted.append((t, pop, cx, cy, sz_small, translit))
