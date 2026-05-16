@@ -4,4 +4,6 @@ shapely>=2.0
 pyproj>=3.5
 fiona>=1.10
 adjustText>=1.0
+contextily>=1.6
+rasterio>=1.3
 anthropic>=0.72     # needed by 06_translate_places.py only

@@ -16,6 +16,7 @@ import argparse
 import warnings
 from pathlib import Path
 
+import contextily as ctx
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
@@ -52,6 +53,12 @@ COL_LABEL       = "#2a2a2a"
 COL_LABEL_SMALL = "#555555"   # stronger grey for transliteration
 COL_DOT         = "#222222"
 COL_LEADER      = "#aaaaaa"   # leader line colour
+
+HILLSHADE_URL = (
+    "https://services.arcgisonline.com/arcgis/rest/services"
+    "/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
+)
+HILLSHADE_ALPHA = 0.25   # very pale — pure shading substrate
 
 
 def _load(path: Path) -> gpd.GeoDataFrame:
@@ -180,6 +187,20 @@ def main():
     if not ocean_clip.empty:
         ocean_clip.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
 
+    # Hillshade — fetched from ArcGIS tile service, reprojected to CRS
+    print("Fetching hillshade tiles...")
+    try:
+        ctx.add_basemap(
+            ax,
+            crs=CRS,
+            source=HILLSHADE_URL,
+            alpha=HILLSHADE_ALPHA,
+            zorder=2,
+            attribution=False,
+        )
+    except Exception as e:
+        print(f"  hillshade skipped: {e}")
+
     countries.plot(ax=ax, facecolor="none", edgecolor=COL_BORDER,
                    linewidth=0.8, zorder=4)
 
@@ -250,7 +271,8 @@ def main():
         expand=(1.1, 1.2),
         force_text=(0.2, 0.4),
         force_points=(0.1, 0.2),
-        arrowprops=dict(arrowstyle="-", color=COL_LEADER, lw=0.5),
+        arrowprops=dict(arrowstyle="-", color=COL_LEADER, lw=0.5,
+                        shrinkA=4, shrinkB=3),
     )
 
     # Render canvas so bounding boxes are computed at final label positions
