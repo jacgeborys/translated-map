@@ -9,3 +9,5 @@ __pycache__/
 .ipynb_checkpoints/
 .idea/
 *.bak
+# rendered PNGs at project root are too large for GitHub (>100 MB)
+*.png
