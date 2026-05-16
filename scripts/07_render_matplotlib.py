@@ -230,7 +230,7 @@ def main():
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
     inv = ax.transData.inverted()
 
-    # Place all candidates invisibly
+    # Place all candidates visibly so get_window_extent returns real bboxes
     candidates = []
     for _, row in cities.iterrows():
         pop = float(row["population"])
@@ -249,16 +249,16 @@ def main():
                     ha="left", va="bottom",
                     path_effects=buf,
                     zorder=9,
-                    visible=False)
+                    visible=True)
         candidates.append((t, pop, x, y, sz_main, sz_small, translit,
                            row.get("name:en", "") in ALLOWLIST))
 
-    # Draw once to compute bounding boxes
+    # Draw once so the renderer can compute real font-metric bboxes
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
     accepted_bboxes = []   # display-coord bboxes of accepted labels
-    accepted = []          # (t, x, y, sz_small, translit)
+    accepted = []          # (t, pop, x, y, sz_small, translit)
 
     for t, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
         raw_bb = t.get_window_extent(renderer=renderer)
@@ -266,9 +266,10 @@ def main():
         # transliteration line that will sit above the translation.
         bb = raw_bb.expanded(1.10, 1.80)
         if is_allowlist or not any(bb.overlaps(ex) for ex in accepted_bboxes):
-            t.set_visible(True)
             accepted_bboxes.append(bb)
             accepted.append((t, pop, cx, cy, sz_small, translit))
+        else:
+            t.set_visible(False)
 
     print(f"  labels placed:   {len(accepted)}")
 
