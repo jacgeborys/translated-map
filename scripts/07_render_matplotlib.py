@@ -130,17 +130,27 @@ def main():
     hsr  = railways[hsr_mask]
     rail = railways[~hsr_mask]
 
-    # Cities with known population, sorted largest-first for label z-order.
-    # Only keep rows that have BOTH a Claude translation (name_eng) AND a
-    # romanised name (name:en / name:pinyin) — the two label lines.
+    # Cities: require Claude translation + romanised name, population >= 1M.
     cities = places[places["place"] == "city"].copy()
-    cities = cities[cities["population"].notna() & (cities["population"] > 0)]
+    cities = cities[cities["population"].notna() & (cities["population"] >= 1_000_000)]
     cities["_translation"]     = cities.apply(_translation, axis=1)
     cities["_transliteration"] = cities.apply(_transliteration, axis=1)
-    # Keep only cities where the Claude translation is present
     has_translation = cities["name_eng"].notna() & (cities["name_eng"].astype(str).str.strip() != "")
     has_translit    = cities["_transliteration"] != ""
     cities = cities[has_translation & has_translit].copy()
+    cities = cities.sort_values("population", ascending=False)
+
+    # Spatial thinning: walk cities largest→smallest; skip any city whose
+    # point lies within MIN_LABEL_DIST of an already-kept city.
+    # 80 km in projected metres keeps clusters (Pearl River Delta etc.) sparse.
+    MIN_LABEL_DIST = 80_000
+    kept_rows, kept_geoms = [], []
+    for _, row in cities.iterrows():
+        pt = row.geometry
+        if all(pt.distance(g) >= MIN_LABEL_DIST for g in kept_geoms):
+            kept_rows.append(row)
+            kept_geoms.append(pt)
+    cities = gpd.GeoDataFrame(kept_rows, crs=cities.crs)
     cities = cities.sort_values("population", ascending=False)
 
     print(f"  ocean polygons:  {len(ocean)}")
