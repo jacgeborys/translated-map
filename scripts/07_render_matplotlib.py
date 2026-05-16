@@ -1,11 +1,13 @@
 """
 Standalone matplotlib map — no QGIS required.
 Layers: ocean, country borders, highways (motorway + trunk), railways, city labels.
-Labels: English translation (from places_translated.gpkg) with original Chinese above at half size.
+Labels: two lines, both in English —
+  top (half size, muted): transliteration  e.g. "Guilin"
+  bottom (full size):     literal meaning  e.g. "Osmanthus Forest"
 
 Run:
-    python scripts/render_matplotlib.py
-    python scripts/render_matplotlib.py --dpi 100 --out output/preview.png
+    python scripts/07_render_matplotlib.py
+    python scripts/07_render_matplotlib.py --dpi 100 --out output/preview.png
 
 Output: output/china_map_mpl.png  (default)
 """
@@ -45,9 +47,11 @@ COL_MOTORWAY = "#a03d10"   # burnt sienna
 COL_TRUNK    = "#d49a60"   # amber
 COL_RAIL_HSR = "#1a1a1a"   # near-black, thicker
 COL_RAIL_STD = "#2a2a2a"   # dark grey, thin
-COL_LABEL    = "#2a2a2a"
-COL_LABEL_ZH = "#888888"   # muted grey for Chinese name
-COL_DOT      = "#222222"
+COL_LABEL       = "#2a2a2a"
+COL_LABEL_SMALL = "#888888"   # muted grey for transliteration line
+COL_DOT         = "#222222"
+
+ROAD_ALPHA = 0.3   # 70 % transparent
 
 
 def _load(path: Path) -> gpd.GeoDataFrame:
@@ -57,8 +61,8 @@ def _load(path: Path) -> gpd.GeoDataFrame:
     return gdf.to_crs(CRS)
 
 
-def _label_en(row) -> str:
-    """Waterfall: Claude translation → name:en → name:pinyin → name."""
+def _translation(row) -> str:
+    """Primary label: Claude literal meaning → name:en → name:pinyin → name."""
     for col in ["name_eng", "name:en", "name:pinyin", "name"]:
         v = row.get(col)
         if v and str(v).strip() and str(v).strip().lower() != "nan":
@@ -66,17 +70,26 @@ def _label_en(row) -> str:
     return ""
 
 
+def _transliteration(row) -> str:
+    """Secondary label (above): romanised name — name:en or pinyin, no Chinese."""
+    for col in ["name:en", "name:pinyin"]:
+        v = row.get(col)
+        if v and str(v).strip() and str(v).strip().lower() != "nan":
+            return str(v).strip()
+    return ""
+
+
 def _font_sizes(pop: float):
-    """Return (en_pt, zh_pt) label sizes for a city population."""
+    """Return (main_pt, small_pt) label sizes for a city population."""
     if pop >= 5_000_000:
-        return 11, 5.5
+        return 7, 3.5
     if pop >= 1_000_000:
-        return 9, 4.5
+        return 6, 3.0
     if pop >= 500_000:
-        return 7.5, 3.8
+        return 5, 2.5
     if pop >= 100_000:
-        return 6.5, 3.3
-    return 5.5, 2.8
+        return 4.5, 2.3
+    return 4, 2.0
 
 
 def main():
@@ -113,8 +126,8 @@ def main():
     cities = places[places["place"] == "city"].copy()
     cities = cities[cities["population"].notna() & (cities["population"] > 0)]
     cities = cities.sort_values("population", ascending=False)
-    cities["_label_en"] = cities.apply(_label_en, axis=1)
-    cities["_label_zh"] = cities["name"].fillna("").astype(str)
+    cities["_translation"]     = cities.apply(_translation, axis=1)
+    cities["_transliteration"] = cities.apply(_transliteration, axis=1)
 
     print(f"  ocean polygons:  {len(ocean)}")
     print(f"  country borders: {len(countries)}")
@@ -164,14 +177,14 @@ def main():
                    linewidth=0.8, zorder=4)
 
     if not rail.empty:
-        rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, zorder=3)
+        rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, alpha=ROAD_ALPHA, zorder=3)
     if not hsr.empty:
-        hsr.plot(ax=ax, color=COL_RAIL_HSR, linewidth=0.75, zorder=3)
+        hsr.plot(ax=ax, color=COL_RAIL_HSR, linewidth=0.75, alpha=ROAD_ALPHA, zorder=3)
 
     if not trunks.empty:
-        trunks.plot(ax=ax, color=COL_TRUNK, linewidth=0.65, zorder=5)
+        trunks.plot(ax=ax, color=COL_TRUNK, linewidth=0.65, alpha=ROAD_ALPHA, zorder=5)
     if not motorways.empty:
-        motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=5)
+        motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, alpha=ROAD_ALPHA, zorder=5)
 
     # ── City dots + labels ────────────────────────────────────────────────────
     buf = [pe.withStroke(linewidth=2.5, foreground=BG)]
@@ -184,43 +197,43 @@ def main():
         if not (xmin < x < xmax and ymin < y < ymax):
             continue
 
-        sz_en, sz_zh = _font_sizes(pop)
-        bold  = pop >= 1_000_000
-        label_en = row["_label_en"]
-        label_zh = row["_label_zh"]
+        sz_main, sz_small = _font_sizes(pop)
+        bold          = pop >= 1_000_000
+        translation   = row["_translation"]       # e.g. "Osmanthus Forest"
+        translit      = row["_transliteration"]   # e.g. "Guilin"
 
-        if not label_en:
+        if not translation:
             continue
 
-        dot_size = 3.5 if pop >= 1_000_000 else 2.0
+        dot_size = 3.0 if pop >= 1_000_000 else 1.8
 
         # Dot
         ax.plot(x, y, "o",
                 markersize=dot_size,
                 color=COL_DOT,
                 markeredgecolor="#ffffff",
-                markeredgewidth=0.4,
+                markeredgewidth=0.35,
                 zorder=8)
 
-        # Chinese name above (only when it differs from the English label)
-        if label_zh and label_zh != label_en:
+        # Transliteration above (only when it differs from the translation)
+        if translit and translit != translation:
             ax.annotate(
-                label_zh, xy=(x, y),
-                xytext=(4, sz_en * 1.55),
+                translit, xy=(x, y),
+                xytext=(4, sz_main * 1.55),
                 textcoords="offset points",
-                fontsize=sz_zh,
-                color=COL_LABEL_ZH,
+                fontsize=sz_small,
+                color=COL_LABEL_SMALL,
                 ha="left", va="bottom",
                 path_effects=buf,
                 zorder=9,
             )
 
-        # English name
+        # Translation (primary label)
         ax.annotate(
-            label_en, xy=(x, y),
+            translation, xy=(x, y),
             xytext=(4, 2),
             textcoords="offset points",
-            fontsize=sz_en,
+            fontsize=sz_main,
             color=COL_LABEL,
             fontweight="bold" if bold else "normal",
             ha="left", va="bottom",
