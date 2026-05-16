@@ -147,7 +147,7 @@ def main():
     has_translit    = cities["_transliteration"] != ""
     has_labels      = has_translation & has_translit
     in_allowlist    = cities["name:en"].isin(ALLOWLIST)
-    cities = cities[has_labels & ((cities["population"] >= 3_000_000) | in_allowlist)].copy()
+    cities = cities[has_labels & ((cities["population"] >= 1_000_000) | in_allowlist)].copy()
     # Sort: allowlist cities first so they are always accepted, then by population
     cities["_allow"] = cities["name:en"].isin(ALLOWLIST).astype(int)
     cities = cities.sort_values(["_allow", "population"], ascending=[False, False])
@@ -252,26 +252,49 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=3.2)
 
-    # ── City labels — greedy bbox collision detection with leader lines ──────────
-    # Two upper anchors only (upper-right preferred, upper-left fallback) so
-    # transliteration is ALWAYS above the translation line.
-    # Labels are offset from the city dot; a leader line connects dot → label.
-    # Cities sorted allowlist-first, then by population descending.
+    # ── City labels ───────────────────────────────────────────────────────────
+    # Algorithm (two-stage):
+    #   1. Spatial thinning — within THIN_M radius keep only the dominant city,
+    #      so dense clusters (PRD, YRD) are pre-pruned before placement.
+    #   2. Greedy 3-position placement — try NE / N / NW anchors (upper
+    #      semicircle only so translit is always above translation).
+    #      Skip city if all 3 positions collide.
+    #      All variants of rejected cities are explicitly hidden (bug fix).
+    # Leader line always drawn from dot to accepted anchor.
+
+    THIN_M   = 60_000   # thinning radius in metres (~60 km)
+    EXPAND_H = 1.08     # bbox horizontal breathing room
+    EXPAND_V = 1.70     # bbox vertical room (covers translit + gap)
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
     inv = ax.transData.inverted()
 
-    # Offset of label anchor from dot, in data (metres for ESRI:102012)
-    off_x = (xmax - xmin) * 0.006   # ~0.6 % of map width  ≈ 25–35 km
-    off_y = (ymax - ymin) * 0.004   # ~0.4 % of map height ≈ 18–22 km
+    # Stage 1: spatial thinning (cities already sorted: allowlist first, pop desc)
+    geoms_all = list(cities.geometry)
+    excl = set()
+    for i in range(len(cities)):
+        if i in excl:
+            continue
+        for j in range(i + 1, len(cities)):
+            if j not in excl and geoms_all[i].distance(geoms_all[j]) < THIN_M:
+                if cities.iloc[j]["name:en"] not in ALLOWLIST:
+                    excl.add(j)
+    cities_thin = cities.iloc[[k for k in range(len(cities)) if k not in excl]]
+    print(f"  cities after thinning: {len(cities_thin)}")
 
-    def _anchor_pos(cx, cy, ha):
-        dx = off_x if ha == "left" else -off_x
-        return cx + dx, cy + off_y
+    # Stage 2: 3-position greedy placement
+    off_x = (xmax - xmin) * 0.006
+    off_y = (ymax - ymin) * 0.004
 
-    # Place both anchor variants visibly so get_window_extent gives real bboxes
+    # (delta_x, delta_y, ha, va) — upper semicircle only
+    POSITIONS = [
+        ( off_x, off_y * 0.5, "left",   "bottom"),  # NE (preferred)
+        (     0, off_y,       "center", "bottom"),  # N
+        (-off_x, off_y * 0.5, "right",  "bottom"),  # NW
+    ]
+
     candidates = []
-    for _, row in cities.iterrows():
+    for _, row in cities_thin.iterrows():
         pop  = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
         if not (xmin < x < xmax and ymin < y < ymax):
@@ -281,33 +304,30 @@ def main():
         translit    = row["_transliteration"]
         if not translation:
             continue
-        anchor_texts = []
-        for ha in ("left", "right"):          # upper-right then upper-left
-            tx, ty = _anchor_pos(x, y, ha)
-            t = ax.text(tx, ty, translation,
+        variants = []
+        for dx, dy, ha, va in POSITIONS:
+            t = ax.text(x + dx, y + dy, translation,
                         fontsize=sz_main, color=COL_LABEL,
                         fontweight="bold" if pop >= 1_000_000 else "normal",
-                        ha=ha, va="bottom",
-                        path_effects=buf, zorder=9, visible=True)
-            anchor_texts.append((t, ha, tx, ty))
-        candidates.append((anchor_texts, pop, x, y, sz_main, sz_small,
+                        ha=ha, va=va, path_effects=buf, zorder=9, visible=True)
+            variants.append((t, x + dx, y + dy, ha))
+        candidates.append((variants, pop, x, y, sz_main, sz_small,
                             translit, row.get("name:en", "") in ALLOWLIST))
 
     print(f"  label candidates: {len(candidates)}")
-
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
     accepted_bboxes = []
-    accepted = []   # (best_t, pop, cx, cy, tx, ty, sz_small, translit)
+    accepted = []
 
-    for anchor_texts, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
+    for variants, pop, cx, cy, sz_main, sz_small, translit, is_allowlist in candidates:
         best_t = best_bb = best_tx = best_ty = None
         best_score = float("inf")
-        for t, ha, tx, ty in anchor_texts:
+        for t, tx, ty, ha in variants:
             raw_bb = t.get_window_extent(renderer=renderer)
-            bb = raw_bb.expanded(1.05, 1.35)
-            score = sum(1 for ex in accepted_bboxes if bb.overlaps(ex))
+            bb     = raw_bb.expanded(EXPAND_H, EXPAND_V)
+            score  = sum(1 for ex in accepted_bboxes if bb.overlaps(ex))
             if score < best_score:
                 best_score, best_t, best_bb = score, t, bb
                 best_tx, best_ty = tx, ty
@@ -317,12 +337,14 @@ def main():
             accepted_bboxes.append(best_bb)
             accepted.append((best_t, pop, cx, cy, best_tx, best_ty,
                              sz_small, translit))
-        for t, ha, tx, ty in anchor_texts:
-            if t is not best_t or not best_t.get_visible():
+            for t, tx, ty, ha in variants:
+                if t is not best_t:
+                    t.set_visible(False)
+        else:
+            for t, tx, ty, ha in variants:   # hide ALL variants of rejected cities
                 t.set_visible(False)
 
     print(f"  labels placed:   {len(accepted)}")
-
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
 
@@ -337,9 +359,9 @@ def main():
                 color=COL_LEADER, linewidth=1.0,
                 solid_capstyle="round", zorder=7)
 
-        # Transliteration always above the translation (va="bottom" flush to top)
+        # Transliteration always above translation (upper anchors guarantee this)
         if translit and translit != best_t.get_text():
-            bb  = best_t.get_window_extent(renderer=renderer)
+            bb = best_t.get_window_extent(renderer=renderer)
             _, y_top = inv.transform((bb.x0, bb.y1))
             ax.text(tx, y_top, translit,
                     fontsize=sz_small, color=COL_LABEL_SMALL,
