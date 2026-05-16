@@ -95,7 +95,7 @@ def _font_sizes(pop: float):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--dpi",  type=int,   default=150)
+    p.add_argument("--dpi",  type=int,   default=300)
     p.add_argument("--out",  type=str,   default=None)
     args = p.parse_args()
 
@@ -193,28 +193,37 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, alpha=ROAD_ALPHA, zorder=5)
 
-    # ── City dots + labels ────────────────────────────────────────────────────
+    # ── City dots + translation labels ───────────────────────────────────────
+    # Strategy:
+    #   1. Draw dots and place translation (main) text objects.
+    #   2. Run adjustText to push overlapping labels apart (no arrows).
+    #   3. Draw canvas to get final bounding boxes.
+    #   4. Place each transliteration text flush against the top of its
+    #      adjusted translation — they always appear as one tight unit.
+    from adjustText import adjust_text
+
     buf = [pe.withStroke(linewidth=2.5, foreground=BG)]
+
+    trans_texts = []   # Text objects for adjust_text
+    trans_meta  = []   # (sz_small, translit) paired with trans_texts
+    city_xs, city_ys = [], []
 
     for _, row in cities.iterrows():
         pop = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
 
-        # Skip if outside visible extent
         if not (xmin < x < xmax and ymin < y < ymax):
             continue
 
         sz_main, sz_small = _font_sizes(pop)
-        bold          = pop >= 1_000_000
-        translation   = row["_translation"]       # e.g. "Osmanthus Forest"
-        translit      = row["_transliteration"]   # e.g. "Guilin"
+        translation = row["_translation"]
+        translit    = row["_transliteration"]
 
         if not translation:
             continue
 
-        dot_size = 3.0 if pop >= 1_000_000 else 1.8
-
         # Dot
+        dot_size = 3.0 if pop >= 1_000_000 else 1.8
         ax.plot(x, y, "o",
                 markersize=dot_size,
                 color=COL_DOT,
@@ -222,31 +231,48 @@ def main():
                 markeredgewidth=0.35,
                 zorder=8)
 
-        # Transliteration above (only when it differs from the translation)
-        if translit and translit != translation:
-            ax.annotate(
-                translit, xy=(x, y),
-                xytext=(4, sz_main * 1.9),
-                textcoords="offset points",
+        # Translation text (will be repositioned by adjust_text)
+        t = ax.text(x, y, translation,
+                    fontsize=sz_main,
+                    color=COL_LABEL,
+                    fontweight="bold" if pop >= 1_000_000 else "normal",
+                    ha="left", va="bottom",
+                    path_effects=buf,
+                    zorder=9)
+        trans_texts.append(t)
+        trans_meta.append((sz_small, translit))
+        city_xs.append(x)
+        city_ys.append(y)
+
+    # Push overlapping labels apart, keeping them near their city points
+    adjust_text(
+        trans_texts,
+        x=city_xs, y=city_ys,
+        ax=ax,
+        expand=(1.1, 1.2),
+        force_text=(0.2, 0.4),
+        force_points=(0.1, 0.2),
+    )
+
+    # Render canvas so bounding boxes are computed at final label positions
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    inv = ax.transData.inverted()
+
+    # Place transliteration flush above each adjusted translation label
+    for t, (sz_small, translit) in zip(trans_texts, trans_meta):
+        if not translit or translit == t.get_text():
+            continue
+        bbox = t.get_window_extent(renderer=renderer)
+        x_data, _ = t.get_position()
+        # Convert top edge of translation bbox from display → data coords
+        _, y_top = inv.transform((bbox.x0, bbox.y1))
+        ax.text(x_data, y_top, translit,
                 fontsize=sz_small,
                 color=COL_LABEL_SMALL,
-                ha="left", va="bottom",
+                ha=t.get_ha(), va="bottom",
                 path_effects=buf,
-                zorder=9,
-            )
-
-        # Translation (primary label)
-        ax.annotate(
-            translation, xy=(x, y),
-            xytext=(4, 2),
-            textcoords="offset points",
-            fontsize=sz_main,
-            color=COL_LABEL,
-            fontweight="bold" if bold else "normal",
-            ha="left", va="bottom",
-            path_effects=buf,
-            zorder=9,
-        )
+                zorder=9)
 
     # ── Save ──────────────────────────────────────────────────────────────────
     print(f"Rendering → {out_path}  ({args.dpi} dpi)")

@@ -3,4 +3,5 @@ matplotlib>=3.7
 shapely>=2.0
 pyproj>=3.5
 fiona>=1.10
+adjustText>=1.0
 anthropic>=0.72     # needed by 06_translate_places.py only
