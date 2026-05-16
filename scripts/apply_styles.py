@@ -448,7 +448,7 @@ def style_train_stations(layer):
 
 def style_places(layer):
     # Single marker with data-defined size so points scale with their label.
-    # Max size (2.5mm) matches the largest label tier (pop ≥ 5M, 15pt).
+    # Max size (2.5mm) matches the largest label tier (pop >= 5M, 15pt).
     # Use coalesce("population", 0) directly — population is stored as float64
     # so to_int() is unnecessary and can silently fail.
     pop = 'coalesce("population", 0)'
@@ -477,7 +477,10 @@ def style_places(layer):
     sym.appendSymbolLayer(sl)
     layer.setRenderer(QgsSingleSymbolRenderer(sym))
 
-    # Labels: population-tiered size, bold for large cities, cities only.
+    # Labels: two-line minimalistic layout.
+    #   Line 1 (top):    original Chinese name — half the size, muted grey
+    #   Line 2 (bottom): English/pinyin name   — full size, normal colour
+    # HTML rendering enables different font sizes within a single label.
     size_expr = (
         f'CASE '
         f' WHEN {pop} >= 5000000 THEN 15 '
@@ -485,6 +488,15 @@ def style_places(layer):
         f' WHEN {pop} >=  500000 THEN 10 '
         f' WHEN {pop} >=  100000 THEN 7 '
         f' ELSE 8 '
+        f'END'
+    )
+    half_size_expr = (
+        f'CASE '
+        f' WHEN {pop} >= 5000000 THEN 8 '
+        f' WHEN {pop} >= 1000000 THEN 6 '
+        f' WHEN {pop} >=  500000 THEN 5 '
+        f' WHEN {pop} >=  100000 THEN 4 '
+        f' ELSE 4 '
         f'END'
     )
     # Priority = placement priority (which label is placed first when space is tight).
@@ -499,14 +511,25 @@ def style_places(layer):
         f' ELSE 2 '
         f'END'
     )
-    bold_expr = (
-        f'CASE WHEN {pop} >= 1000000 '
-        f'THEN True ELSE False END'
+    bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
+
+    # HTML label: Chinese name above (half size, muted) only when it differs
+    # from the resolved English label; English name inherits the base text format.
+    name_en = 'coalesce("name:en", "name:pinyin", "name")'
+    html_label = (
+        f"concat("
+        f"  if(\"name\" IS NOT NULL AND \"name\" != {name_en},"
+        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name\", '</span><br>'),"
+        f"    ''"
+        f"  ),"
+        f"  {name_en}"
+        f")"
     )
 
     lbl = QgsPalLayerSettings()
     lbl.isExpression = True
-    lbl.fieldName = LABEL_EN
+    lbl.useHtml = True
+    lbl.fieldName = html_label
     lbl.setFormat(label_format(8.0, bold=False))
     lbl.placement = QgsPalLayerSettings.OverPoint
     lbl.dataDefinedProperties().setProperty(
@@ -515,8 +538,7 @@ def style_places(layer):
     lbl.dataDefinedProperties().setProperty(
         QgsPalLayerSettings.Priority, QgsProperty.fromExpression(priority_expr)
     )
-    # ZIndex controls which label renders on top when two labels physically overlap.
-    # Use raw population (in millions) so Guangzhou (14) always beats Foshan (9.5).
+    # ZIndex: use raw population (millions) so Guangzhou (14M) beats Foshan (9.5M).
     lbl.dataDefinedProperties().setProperty(
         QgsPalLayerSettings.ZIndex, QgsProperty.fromExpression(f'{pop} / 1000000')
     )
