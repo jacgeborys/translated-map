@@ -19,6 +19,7 @@ from pathlib import Path
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+from adjustText import adjust_text
 
 warnings.filterwarnings("ignore")
 
@@ -200,8 +201,6 @@ def main():
     #   3. Draw canvas to get final bounding boxes.
     #   4. Place each transliteration text flush against the top of its
     #      adjusted translation — they always appear as one tight unit.
-    from adjustText import adjust_text
-
     buf = [pe.withStroke(linewidth=2.5, foreground=BG)]
 
     trans_texts = []   # Text objects for adjust_text
