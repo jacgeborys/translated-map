@@ -44,15 +44,14 @@ CRS = "ESRI:102012"
 BG           = "#f5f0e8"   # NatGeo cream background
 COL_OCEAN    = "#a9c9d6"
 COL_BORDER   = "#a04060"
-COL_MOTORWAY = "#a03d10"   # burnt sienna
-COL_TRUNK    = "#d49a60"   # amber
-COL_RAIL_HSR = "#1a1a1a"   # near-black, thicker
-COL_RAIL_STD = "#2a2a2a"   # dark grey, thin
+COL_MOTORWAY = "#ddb89a"   # very pale burnt sienna
+COL_TRUNK    = "#e8dbbf"   # very pale amber
+COL_RAIL_HSR = "#c0bfbc"   # pale grey, slightly warm
+COL_RAIL_STD = "#ceccc8"   # lighter pale grey
 COL_LABEL       = "#2a2a2a"
-COL_LABEL_SMALL = "#888888"   # muted grey for transliteration line
+COL_LABEL_SMALL = "#555555"   # stronger grey for transliteration
 COL_DOT         = "#222222"
-
-ROAD_ALPHA = 0.3   # 70 % transparent
+COL_LEADER      = "#aaaaaa"   # leader line colour
 
 
 def _load(path: Path) -> gpd.GeoDataFrame:
@@ -185,14 +184,14 @@ def main():
                    linewidth=0.8, zorder=4)
 
     if not rail.empty:
-        rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, alpha=ROAD_ALPHA, zorder=3)
+        rail.plot(ax=ax, color=COL_RAIL_STD, linewidth=0.45, zorder=3)
     if not hsr.empty:
-        hsr.plot(ax=ax, color=COL_RAIL_HSR, linewidth=0.75, alpha=ROAD_ALPHA, zorder=3)
+        hsr.plot(ax=ax, color=COL_RAIL_HSR, linewidth=0.75, zorder=3)
 
     if not trunks.empty:
-        trunks.plot(ax=ax, color=COL_TRUNK, linewidth=0.65, alpha=ROAD_ALPHA, zorder=5)
+        trunks.plot(ax=ax, color=COL_TRUNK, linewidth=0.65, zorder=5)
     if not motorways.empty:
-        motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, alpha=ROAD_ALPHA, zorder=5)
+        motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=5)
 
     # ── City dots + translation labels ───────────────────────────────────────
     # Strategy:
@@ -201,7 +200,7 @@ def main():
     #   3. Draw canvas to get final bounding boxes.
     #   4. Place each transliteration text flush against the top of its
     #      adjusted translation — they always appear as one tight unit.
-    buf = [pe.withStroke(linewidth=2.5, foreground=BG)]
+    buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
 
     trans_texts = []   # Text objects for adjust_text
     trans_meta  = []   # (sz_small, translit) paired with trans_texts
@@ -243,7 +242,7 @@ def main():
         city_xs.append(x)
         city_ys.append(y)
 
-    # Push overlapping labels apart, keeping them near their city points
+    # Push overlapping labels apart; draw leader lines back to city dots
     adjust_text(
         trans_texts,
         x=city_xs, y=city_ys,
@@ -251,6 +250,7 @@ def main():
         expand=(1.1, 1.2),
         force_text=(0.2, 0.4),
         force_points=(0.1, 0.2),
+        arrowprops=dict(arrowstyle="-", color=COL_LEADER, lw=0.5),
     )
 
     # Render canvas so bounding boxes are computed at final label positions
