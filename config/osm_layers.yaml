@@ -1,0 +1,148 @@
+# OSM layer definitions for southern China regional reference map.
+# Each layer is fetched via Overpass API with {bbox} substituted from config/aoi.geojson.
+# `columns` filters OSM tags to keep (plus osm_id/osm_type always added).
+# China OSM coverage notes:
+#   - Urban detail is sparse; keep urban layers minimal.
+#   - Admin boundaries are reliable.
+#   - Chinese names in `name`; English in `name:en` (patchy); pinyin in `name:pinyin` / `name:zh_pinyin`.
+
+layers:
+
+  roads:
+    # Tertiary dropped — too noisy at provincial scale. Add back here if you want it.
+    query: |
+      [out:json][timeout:180];
+      (
+        way["highway"="motorway"]({bbox});
+        way["highway"="trunk"]({bbox});
+        way["highway"="primary"]({bbox});
+        way["highway"="secondary"]({bbox});
+        way["highway"="motorway_link"]({bbox});
+        way["highway"="trunk_link"]({bbox});
+        way["highway"="primary_link"]({bbox});
+      );
+      out geom;
+    columns: [highway, name, "name:en", "name:zh", "name:pinyin", ref, bridge, tunnel, layer]
+    hierarchy:
+      motorway: 1
+      trunk: 2
+      primary: 3
+      secondary: 4
+      motorway_link: 1
+      trunk_link: 2
+      primary_link: 3
+    tile_size_deg: 1.0
+
+  railways:
+    query: |
+      [out:json][timeout:180];
+      (
+        way["railway"="rail"]({bbox});
+      );
+      out geom;
+    # NOTE: HSR tag in OSM is `highspeed` (one word), not `high_speed`.
+    columns: [railway, name, "name:en", "name:zh", usage, service, bridge, tunnel, layer, electrified, highspeed, maxspeed]
+    tile_size_deg: 2.0
+
+  train_stations:
+    query: |
+      [out:json][timeout:120];
+      (
+        node["railway"="station"]({bbox});
+        node["railway"="halt"]({bbox});
+        way["railway"="station"]({bbox});
+        relation["railway"="station"]({bbox});
+      );
+      out geom;
+    columns: [railway, name, "name:en", "name:zh", "name:pinyin", station, operator, train]
+    tile_size_deg: 4.0
+
+  rivers:
+    query: |
+      [out:json][timeout:180];
+      (
+        way["waterway"="river"]({bbox});
+        way["waterway"="canal"]({bbox});
+      );
+      out geom;
+    columns: [waterway, name, "name:en", "name:zh", "name:pinyin", intermittent, tunnel]
+    tile_size_deg: 2.0
+
+  water_bodies:
+    query: |
+      [out:json][timeout:180];
+      (
+        way["natural"="water"]({bbox});
+        relation["natural"="water"]({bbox});
+      );
+      out geom;
+    columns: [natural, water, name, "name:en", "name:zh", "name:pinyin"]
+    tile_size_deg: 1.0
+
+  admin_country:
+    query: |
+      [out:json][timeout:180];
+      (
+        relation["boundary"="administrative"]["admin_level"="2"]({bbox});
+      );
+      out geom;
+    columns: [admin_level, name, "name:en", "name:zh", boundary]
+
+  admin_province:
+    query: |
+      [out:json][timeout:180];
+      (
+        relation["boundary"="administrative"]["admin_level"="4"]({bbox});
+      );
+      out geom;
+    columns: [admin_level, name, "name:en", "name:zh", boundary]
+
+  admin_prefecture:
+    query: |
+      [out:json][timeout:180];
+      (
+        relation["boundary"="administrative"]["admin_level"="6"]({bbox});
+      );
+      out geom;
+    columns: [admin_level, name, "name:en", "name:zh", boundary]
+
+  places:
+    query: |
+      [out:json][timeout:120];
+      (
+        node["place"="city"]({bbox});
+        node["place"="town"]({bbox});
+        node["place"="village"]({bbox});
+      );
+      out geom;
+    columns: [place, name, "name:en", "name:zh", "name:pinyin", population, capital, admin_level]
+    int_columns: [population]
+    tile_size_deg: 2.0
+
+  tourism:
+    # Fetch everything tourism=*. We will filter out hotels/info/etc. downstream.
+    query: |
+      [out:json][timeout:180];
+      (
+        node["tourism"]({bbox});
+        way["tourism"]({bbox});
+        relation["tourism"]({bbox});
+      );
+      out geom;
+    columns: [tourism, name, "name:en", "name:zh", "name:pinyin", website, wikidata, wikipedia, operator, ref]
+    tile_size_deg: 1.0
+
+  protected_areas:
+    query: |
+      [out:json][timeout:180];
+      (
+        way["boundary"="national_park"]({bbox});
+        relation["boundary"="national_park"]({bbox});
+        way["boundary"="protected_area"]({bbox});
+        relation["boundary"="protected_area"]({bbox});
+        way["leisure"="nature_reserve"]({bbox});
+        relation["leisure"="nature_reserve"]({bbox});
+      );
+      out geom;
+    columns: [boundary, leisure, name, "name:en", "name:zh", protect_class, protection_title]
+    tile_size_deg: 2.0

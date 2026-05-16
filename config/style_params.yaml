@@ -1,0 +1,14 @@
+# Placeholder. Populate when QGIS styling is done interactively.
+# Keep cartographic decisions (colors, fonts, line weights) here, not in code.
+
+hillshade:
+  # TODO: tune after visual inspection in QGIS
+  multidirectional: true
+  z_factor: 1.0
+  opacity: 0.45
+  blend_mode: multiply
+
+labels:
+  # TODO
+  font_family: null
+  min_place_population: 5000
