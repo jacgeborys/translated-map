@@ -90,17 +90,15 @@ def _transliteration(row) -> str:
 
 
 def _font_sizes(pop: float):
-    """Return (main_pt, small_pt) label sizes. small = 0.75 × main."""
-    if pop >= 5_000_000:
+    """Return (main_pt, small_pt). Scale anchored at 1 M pop minimum."""
+    if pop >= 10_000_000:
+        main = 8
+    elif pop >= 5_000_000:
         main = 7
-    elif pop >= 1_000_000:
+    elif pop >= 3_000_000:
         main = 6
-    elif pop >= 500_000:
+    else:   # 1 M – 3 M
         main = 5
-    elif pop >= 100_000:
-        main = 4.5
-    else:
-        main = 4
     return main, round(main * 0.75, 1)
 
 
@@ -267,11 +265,10 @@ def main():
     # Result: all labels separated with symmetric displacement; dense coastal
     #         clusters (PRD) naturally spill into the adjacent sea.
 
-    THIN_M   = 60_000   # thinning radius (m)
-    N_ITER   = 150      # physics iterations
-    SPRING_K = 0.06     # fraction pulled toward preferred each iteration
-    BUF_M    = 1_000    # extra separation buffer beyond bbox edge (m)
-    PAD      = 0.12     # additional fractional padding on half-extents
+    THIN_M   = 50_000   # thinning radius (m)
+    N_ITER   = 300      # max separation iterations (stops early on convergence)
+    BUF_M    = 2_000    # extra gap beyond bbox edge after each push (m)
+    PAD      = 0.12     # fractional padding on half-extents
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
     inv = ax.transData.inverted()
@@ -309,7 +306,7 @@ def main():
             continue
         t = ax.text(x + off_x, y + off_y, translation,
                     fontsize=sz_main, color=COL_LABEL,
-                    fontweight="bold" if pop >= 1_000_000 else "normal",
+                    fontweight="bold" if pop >= 5_000_000 else "normal",
                     ha="left", va="bottom",
                     path_effects=buf, zorder=9, visible=True)
         texts.append(t)
@@ -338,11 +335,14 @@ def main():
         lbl_hh.append(h / 2 * (1 + PAD))
         pref_cx.append(cx);  pref_cy.append(cy)
 
-    # ── Physics loop ──────────────────────────────────────────────────────────
+    # ── Physics loop — iterative separation, no spring ────────────────────────
+    # Each round: resolve all overlapping pairs symmetrically (Gauss-Seidel),
+    # then clamp to map bounds.  Stop early when no overlap remains.
+    # No spring — labels drift as far as needed; leader lines span the gap.
     n = len(texts)
-    print(f"  running {N_ITER} physics iterations for {n} labels...")
-    for _ in range(N_ITER):
-        # Pairwise repulsion: push overlapping pairs apart symmetrically
+    print(f"  running up to {N_ITER} separation iterations for {n} labels...")
+    for iteration in range(N_ITER):
+        any_overlap = False
         for i in range(n):
             for j in range(i + 1, n):
                 dx = lbl_cx[i] - lbl_cx[j]
@@ -350,7 +350,8 @@ def main():
                 ox = (lbl_hw[i] + lbl_hw[j]) - abs(dx)
                 oy = (lbl_hh[i] + lbl_hh[j]) - abs(dy)
                 if ox > 0 and oy > 0:
-                    # Resolve along the axis with less penetration
+                    any_overlap = True
+                    # Resolve along the axis with smaller penetration
                     if ox <= oy:
                         push = ox / 2 + BUF_M
                         sign = 1 if dx >= 0 else -1
@@ -361,10 +362,15 @@ def main():
                         sign = 1 if dy >= 0 else -1
                         lbl_cy[i] += sign * push
                         lbl_cy[j] -= sign * push
-        # Spring: pull each label back toward its preferred position
+        # Clamp to map bounds so labels don't drift off-canvas
         for i in range(n):
-            lbl_cx[i] += (pref_cx[i] - lbl_cx[i]) * SPRING_K
-            lbl_cy[i] += (pref_cy[i] - lbl_cy[i]) * SPRING_K
+            lbl_cx[i] = max(xmin + lbl_hw[i], min(xmax - lbl_hw[i], lbl_cx[i]))
+            lbl_cy[i] = max(ymin + lbl_hh[i], min(ymax - lbl_hh[i], lbl_cy[i]))
+        if not any_overlap:
+            print(f"  converged after {iteration + 1} iterations")
+            break
+    else:
+        print(f"  separation incomplete after {N_ITER} iterations")
 
     # ── Stage 3: update text positions, draw dots / leaders / translits ───────
     for i, (t, d) in enumerate(zip(texts, city_info)):
