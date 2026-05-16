@@ -62,11 +62,10 @@ def _load(path: Path) -> gpd.GeoDataFrame:
 
 
 def _translation(row) -> str:
-    """Primary label: Claude literal meaning → name:en → name:pinyin → name."""
-    for col in ["name_eng", "name:en", "name:pinyin", "name"]:
-        v = row.get(col)
-        if v and str(v).strip() and str(v).strip().lower() != "nan":
-            return str(v).strip()
+    """Primary label: Claude literal meaning translation (name_eng)."""
+    v = row.get("name_eng")
+    if v and str(v).strip() and str(v).strip().lower() != "nan":
+        return str(v).strip()
     return ""
 
 
@@ -122,12 +121,18 @@ def main():
     hsr  = railways[hsr_mask]
     rail = railways[~hsr_mask]
 
-    # Cities with known population, sorted largest-first for label z-order
+    # Cities with known population, sorted largest-first for label z-order.
+    # Only keep rows that have BOTH a Claude translation (name_eng) AND a
+    # romanised name (name:en / name:pinyin) — the two label lines.
     cities = places[places["place"] == "city"].copy()
     cities = cities[cities["population"].notna() & (cities["population"] > 0)]
-    cities = cities.sort_values("population", ascending=False)
     cities["_translation"]     = cities.apply(_translation, axis=1)
     cities["_transliteration"] = cities.apply(_transliteration, axis=1)
+    # Keep only cities where the Claude translation is present
+    has_translation = cities["name_eng"].notna() & (cities["name_eng"].astype(str).str.strip() != "")
+    has_translit    = cities["_transliteration"] != ""
+    cities = cities[has_translation & has_translit].copy()
+    cities = cities.sort_values("population", ascending=False)
 
     print(f"  ocean polygons:  {len(ocean)}")
     print(f"  country borders: {len(countries)}")
