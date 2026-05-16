@@ -32,12 +32,13 @@ except NameError:
     PROJECT_ROOT = Path(r"D:\QGIS\natgeo_map\china-map")
 
 # ── Data paths ────────────────────────────────────────────────────────────────
-OCEAN       = PROJECT_ROOT / "data/01_raw/ocean/ne_10m_ocean.gpkg"
-COUNTRIES   = PROJECT_ROOT / "data/01_raw/osm/admin_country.gpkg"
-RAILWAYS    = PROJECT_ROOT / "data/01_raw/osm/railways.gpkg"
-ROADS       = PROJECT_ROOT / "data/01_raw/osm/roads.gpkg"
-PLACES      = PROJECT_ROOT / "data/03_processed/places_translated.gpkg"
-WORLDCOVER  = PROJECT_ROOT / "data/03_processed/worldcover.tif"
+OCEAN        = PROJECT_ROOT / "data/01_raw/ocean/ne_10m_ocean.gpkg"
+COUNTRIES    = PROJECT_ROOT / "data/01_raw/osm/admin_country.gpkg"
+WATER_BODIES = PROJECT_ROOT / "data/01_raw/osm/water_bodies.gpkg"
+RAILWAYS     = PROJECT_ROOT / "data/01_raw/osm/railways.gpkg"
+ROADS        = PROJECT_ROOT / "data/01_raw/osm/roads.gpkg"
+PLACES       = PROJECT_ROOT / "data/03_processed/places_translated.gpkg"
+WORLDCOVER   = PROJECT_ROOT / "data/03_processed/worldcover.tif"
 
 OUTPUT_DIR = PROJECT_ROOT / "output"
 
@@ -114,9 +115,10 @@ def main():
 
     # ── Load ─────────────────────────────────────────────────────────────────
     print("Loading layers...")
-    ocean     = _load(OCEAN)
-    countries = _load(COUNTRIES)
-    railways  = _load(RAILWAYS)
+    ocean        = _load(OCEAN)
+    countries    = _load(COUNTRIES)
+    water_bodies = _load(WATER_BODIES)
+    railways     = _load(RAILWAYS)
     roads     = _load(ROADS)
     places    = _load(PLACES)
 
@@ -151,6 +153,7 @@ def main():
     cities = cities.sort_values(["_allow", "population"], ascending=[False, False])
 
     print(f"  ocean polygons:  {len(ocean)}")
+    print(f"  water bodies:    {len(water_bodies)}")
     print(f"  country borders: {len(countries)}")
     print(f"  motorways:       {len(motorways)}")
     print(f"  trunks:          {len(trunks)}")
@@ -193,6 +196,9 @@ def main():
     # ── Draw layers ───────────────────────────────────────────────────────────
     if not ocean_clip.empty:
         ocean_clip.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
+
+    if not water_bodies.empty:
+        water_bodies.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
 
     # WorldCover — very pale land-cover tints under hillshade
     if WORLDCOVER.exists():
