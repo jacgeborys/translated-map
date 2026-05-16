@@ -79,16 +79,18 @@ def _transliteration(row) -> str:
 
 
 def _font_sizes(pop: float):
-    """Return (main_pt, small_pt) label sizes for a city population."""
+    """Return (main_pt, small_pt) label sizes. small = 0.75 × main."""
     if pop >= 5_000_000:
-        return 7, 3.5
-    if pop >= 1_000_000:
-        return 6, 3.0
-    if pop >= 500_000:
-        return 5, 2.5
-    if pop >= 100_000:
-        return 4.5, 2.3
-    return 4, 2.0
+        main = 7
+    elif pop >= 1_000_000:
+        main = 6
+    elif pop >= 500_000:
+        main = 5
+    elif pop >= 100_000:
+        main = 4.5
+    else:
+        main = 4
+    return main, round(main * 0.75, 1)
 
 
 def main():
@@ -152,8 +154,8 @@ def main():
                 max(bounds[2], b[2]), max(bounds[3], b[3]),
             ]
     xmin, ymin, xmax, ymax = bounds
-    pad_x = (xmax - xmin) * 0.05
-    pad_y = (ymax - ymin) * 0.05
+    pad_x = (xmax - xmin) * 0.01
+    pad_y = (ymax - ymin) * 0.01
     xmin -= pad_x; xmax += pad_x
     ymin -= pad_y; ymax += pad_y
 
@@ -224,7 +226,7 @@ def main():
         if translit and translit != translation:
             ax.annotate(
                 translit, xy=(x, y),
-                xytext=(4, sz_main * 1.55),
+                xytext=(4, sz_main * 1.9),
                 textcoords="offset points",
                 fontsize=sz_small,
                 color=COL_LABEL_SMALL,
