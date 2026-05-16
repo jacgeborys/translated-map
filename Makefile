@@ -3,21 +3,30 @@
 
 PY := python
 
-.PHONY: all dem relief osm worldcover clean-mosaics clean-all
+.PHONY: all dem relief natearth osm worldcover translate render clean-mosaics clean-all
 
-all: dem relief osm worldcover
+all: dem relief natearth worldcover osm translate render
 
 dem:
-	$(PY) scripts/fetch_dem.py
+	$(PY) scripts/01_fetch_dem.py
 
 relief: dem
-	$(PY) scripts/build_relief.py
+	$(PY) scripts/02_build_relief.py
+
+natearth:
+	$(PY) scripts/03_fetch_natural_earth.py
 
 osm:
-	$(PY) scripts/fetch_osm.py
+	$(PY) scripts/05_fetch_osm.py
 
 worldcover:
-	$(PY) scripts/fetch_esa_worldcover.py
+	$(PY) scripts/04_fetch_esa_worldcover.py
+
+translate:
+	$(PY) scripts/06_translate_places.py
+
+render:
+	$(PY) scripts/07_render_matplotlib.py
 
 # Delete per-AOI outputs only — raw tile caches (DEM, OSM _tiles, NE) are kept.
 # Run this before re-running `make all` after changing config/aoi.geojson.

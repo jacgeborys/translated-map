@@ -66,12 +66,22 @@ make osm       # fetch all OSM layers defined in config/osm_layers.yaml
 make all       # dem → relief → osm
 ```
 
-Individual scripts:
+Individual scripts (run in order):
 
 ```bash
-python scripts/fetch_dem.py
-python scripts/build_relief.py
-python scripts/fetch_osm.py
+python scripts/01_fetch_dem.py
+python scripts/02_build_relief.py
+python scripts/03_fetch_natural_earth.py
+python scripts/04_fetch_esa_worldcover.py
+python scripts/05_fetch_osm.py
+python scripts/06_translate_places.py
+python scripts/07_render_matplotlib.py
+```
+
+QGIS-specific (optional, no prefix):
+```bash
+python-qgis.bat scripts/apply_styles.py   # apply styles to .qgz
+python-qgis.bat scripts/render.py         # headless QGIS export
 ```
 
 All outputs are regenerable; delete the target file (or entire `data/01_raw/`)
@@ -99,11 +109,16 @@ china-map/
 │   ├── 02_interim/     (gitignored)
 │   └── 03_processed/   (gitignored)
 ├── scripts/
-│   ├── fetch_dem.py
-│   ├── build_relief.py
-│   ├── fetch_osm.py
-│   ├── translate_labels.py   (stub)
-│   └── render.py             (stub)
+│   ├── 01_fetch_dem.py
+│   ├── 02_build_relief.py
+│   ├── 03_fetch_natural_earth.py
+│   ├── 04_fetch_esa_worldcover.py
+│   ├── 05_fetch_osm.py
+│   ├── 06_translate_places.py
+│   ├── 07_render_matplotlib.py   ← main output, no QGIS needed
+│   ├── apply_styles.py           ← QGIS styling tool
+│   ├── render.py                 ← QGIS headless export
+│   └── translate_labels.py       (stub)
 ├── qgis/               (empty — add .qgz later)
 └── output/             (gitignored)
 ```
