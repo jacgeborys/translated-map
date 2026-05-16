@@ -576,11 +576,11 @@ def _wc_styler(esa_class, hex_color, opacity=0.30):
 
 # Each points to the same worldcover.tif but shows a single class.
 # Load worldcover.tif five times in QGIS, naming each layer as below.
-style_wc_trees     = _wc_styler(10, "#7aaa68")        # forests & plantations
-style_wc_cropland  = _wc_styler(40, "#e0d4a0")        # rice paddies & farmland
-style_wc_builtup   = _wc_styler(50, "#9e9389", 0.75)   # cities & urban areas — darker, more opaque
-style_wc_wetland   = _wc_styler(90, "#9ec4b8")        # herbaceous wetlands
-style_wc_mangroves = _wc_styler(95, "#5fa882", 0.70)  # mangroves — slightly more opaque
+style_wc_trees     = _wc_styler(10, "#7aaa68", 0.12)   # forests & plantations — very pale green
+style_wc_cropland  = _wc_styler(40, "#e0d4a0", 0.12)   # rice paddies & farmland — very pale wheat
+style_wc_builtup   = _wc_styler(50, "#9e9389", 0.20)   # cities & urban areas — pale warm grey
+style_wc_wetland   = _wc_styler(90, "#9ec4b8", 0.15)   # herbaceous wetlands
+style_wc_mangroves = _wc_styler(95, "#5fa882", 0.18)   # mangroves
 
 
 def style_urban_areas(layer):

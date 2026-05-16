@@ -16,10 +16,12 @@ import argparse
 import warnings
 from pathlib import Path
 
+import numpy as np
 import contextily as ctx
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+from matplotlib.colors import ListedColormap
 from adjustText import adjust_text
 
 warnings.filterwarnings("ignore")
@@ -30,11 +32,12 @@ except NameError:
     PROJECT_ROOT = Path(r"D:\QGIS\natgeo_map\china-map")
 
 # ── Data paths ────────────────────────────────────────────────────────────────
-OCEAN     = PROJECT_ROOT / "data/01_raw/ocean/ne_10m_ocean.gpkg"
-COUNTRIES = PROJECT_ROOT / "data/01_raw/osm/admin_country.gpkg"
-RAILWAYS  = PROJECT_ROOT / "data/01_raw/osm/railways.gpkg"
-ROADS     = PROJECT_ROOT / "data/01_raw/osm/roads.gpkg"
-PLACES    = PROJECT_ROOT / "data/03_processed/places_translated.gpkg"
+OCEAN       = PROJECT_ROOT / "data/01_raw/ocean/ne_10m_ocean.gpkg"
+COUNTRIES   = PROJECT_ROOT / "data/01_raw/osm/admin_country.gpkg"
+RAILWAYS    = PROJECT_ROOT / "data/01_raw/osm/railways.gpkg"
+ROADS       = PROJECT_ROOT / "data/01_raw/osm/roads.gpkg"
+PLACES      = PROJECT_ROOT / "data/03_processed/places_translated.gpkg"
+WORLDCOVER  = PROJECT_ROOT / "data/03_processed/worldcover.tif"
 
 OUTPUT_DIR = PROJECT_ROOT / "output"
 
@@ -190,6 +193,27 @@ def main():
     # ── Draw layers ───────────────────────────────────────────────────────────
     if not ocean_clip.empty:
         ocean_clip.plot(ax=ax, color=COL_OCEAN, linewidth=0, zorder=1)
+
+    # WorldCover — very pale land-cover tints under hillshade
+    if WORLDCOVER.exists():
+        print("Rendering WorldCover tints...")
+        try:
+            import rasterio
+            with rasterio.open(WORLDCOVER) as src:
+                wc_data = src.read(1)
+                b = src.bounds
+                wc_extent = (b.left, b.right, b.bottom, b.top)
+            for cls, col, alpha in [
+                (10, "#b8d4a8", 0.30),   # trees    — pale sage green
+                (40, "#ece4c0", 0.30),   # cropland — pale wheat
+                (50, "#d0c8c0", 0.35),   # built-up — pale warm grey
+            ]:
+                mask = np.where(wc_data == cls, 1.0, np.nan)
+                ax.imshow(mask, extent=wc_extent, aspect="auto",
+                          cmap=ListedColormap([col]), alpha=alpha,
+                          zorder=1.5, interpolation="nearest", origin="upper")
+        except Exception as e:
+            print(f"  worldcover skipped: {e}")
 
     # Hillshade — fetched from ArcGIS tile service, reprojected to CRS
     print("Fetching hillshade tiles...")
