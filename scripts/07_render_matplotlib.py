@@ -263,7 +263,8 @@ def main():
         city_xs.append(x)
         city_ys.append(y)
 
-    # Push overlapping labels apart; draw leader lines back to city dots
+    # Push overlapping labels apart (no arrowprops — FancyArrowPatch is
+    # incompatible with projected transforms; we draw leader lines manually below)
     adjust_text(
         trans_texts,
         x=city_xs, y=city_ys,
@@ -271,14 +272,23 @@ def main():
         expand=(1.1, 1.2),
         force_text=(0.2, 0.4),
         force_points=(0.1, 0.2),
-        arrowprops=dict(arrowstyle="-", color=COL_LEADER, lw=0.5,
-                        shrinkA=4, shrinkB=3),
     )
 
     # Render canvas so bounding boxes are computed at final label positions
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     inv = ax.transData.inverted()
+
+    # Draw leader lines manually: city dot → label anchor, only when the label
+    # has been pushed more than 15 km away from its city point.
+    leader_threshold = (xmax - xmin) * 0.015
+    for i, t in enumerate(trans_texts):
+        lx, ly = t.get_position()
+        ox, oy = city_xs[i], city_ys[i]
+        if ((lx - ox) ** 2 + (ly - oy) ** 2) ** 0.5 > leader_threshold:
+            ax.plot([ox, lx], [oy, ly],
+                    color=COL_LEADER, lw=0.5, zorder=8,
+                    solid_capstyle="round")
 
     # Place transliteration flush above each adjusted translation label
     for t, (sz_small, translit) in zip(trans_texts, trans_meta):
