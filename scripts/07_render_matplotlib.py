@@ -276,6 +276,7 @@ def main():
     W_CROSS    = 60.0    # per leader segment that crosses a placed label bbox
     W_DIST     = 8.0     # per unit of C_MULTS (strongly prefer adjacent slot)
     W_DIR      = 4.0     # per π-radian deviation from preferred clear direction
+    W_AMBIG    = 300.0   # per other city dot closer to this label than own dot is
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
 
@@ -441,8 +442,16 @@ def main():
     placed  = []    # (cx, cy, hw, hh) confirmed label bboxes (parallel to results)
     results = []    # (cx, cy, hw, hh, city_info_dict) for final rendering
 
-    def _best_candidate(hw, hh, dot_x, dot_y, pref_angle, other_placed):
-        """Return (best_cx, best_cy, best_score) over all C_MULTS × ANGLES."""
+    # All dot positions for ambiguity constraint (built once, used in closure).
+    all_dots = [(d["cx"], d["cy"]) for d in city_info]
+
+    def _best_candidate(hw, hh, dot_x, dot_y, pref_angle, other_placed, dot_idx=None):
+        """Return (best_cx, best_cy, best_score) over all C_MULTS × ANGLES.
+
+        dot_idx: index of this label in all_dots (excluded from ambiguity check).
+        Ambiguity rule: no other city's dot may be closer to this label bbox
+        than the label's own dot is — ensures unambiguous dot-label association.
+        """
         hw_u = hw / (1 + PAD)   # unpadded half-extents for r_edge computation
         hh_u = hh / (1 + PAD)
         best_score = float("inf")
@@ -480,13 +489,26 @@ def main():
                                           px + phw, py + phh):
                             cross_pen += 1.0
 
+                # Ambiguity: count other dots closer to this label bbox than
+                # the label's own dot is. Each such dot makes the label
+                # visually ambiguous — heavily penalise.
+                ambiguity_pen = 0.0
+                for j, (ox, oy) in enumerate(all_dots):
+                    if j == dot_idx:
+                        continue
+                    bx = max(cx - hw, min(ox, cx + hw))
+                    by = max(cy - hh, min(oy, cy + hh))
+                    if np.hypot(bx - ox, by - oy) < leader_len:
+                        ambiguity_pen += 1.0
+
                 ang_diff = abs(((angle - pref_angle + np.pi) % (2 * np.pi)) - np.pi)
                 dir_pen  = ang_diff / np.pi
 
-                score = (overlap_pen * W_OVERLAP
-                         + cross_pen  * W_CROSS
-                         + k_mult     * W_DIST
-                         + dir_pen    * W_DIR)
+                score = (overlap_pen    * W_OVERLAP
+                         + cross_pen   * W_CROSS
+                         + k_mult      * W_DIST
+                         + dir_pen     * W_DIR
+                         + ambiguity_pen * W_AMBIG)
 
                 if score < best_score:
                     best_score = score
@@ -501,7 +523,7 @@ def main():
         dot_x, dot_y = d["cx"], d["cy"]
         pref_angle   = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
 
-        best_cx, best_cy, _ = _best_candidate(hw, hh, dot_x, dot_y, pref_angle, placed)
+        best_cx, best_cy, _ = _best_candidate(hw, hh, dot_x, dot_y, pref_angle, placed, dot_idx=i)
 
         if best_cx is None:
             print(f"    FALLBACK (all OOB): {d['translation']}")
@@ -531,7 +553,7 @@ def main():
             others = [placed[j] for j in range(len(placed)) if j != i]
 
             best_cx_r, best_cy_r, _ = _best_candidate(
-                hw, hh, dot_x, dot_y, pref_angle, others)
+                hw, hh, dot_x, dot_y, pref_angle, others, dot_idx=i)
 
             if best_cx_r is not None:
                 nx = max(best_cx_r - hw, min(dot_x, best_cx_r + hw))
