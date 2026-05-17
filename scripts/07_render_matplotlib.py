@@ -258,7 +258,7 @@ def main():
     #    sparsest 45° density sector.
     # 3. Measure label bboxes by rendering invisible placeholder texts.
     # 4. Greedy placement in priority order (population desc):
-    #    • generate N_ANG angles × len(R_MULTS) radii candidates per dot
+    #    • generate N_ANG angles × len(C_MULTS) clearance rings per dot
     #    • score: overlap count + leader-crosses-label + distance + dir deviation
     #    • pick lowest-score candidate; record bbox as occupied
     # 5. Draw: city dot → leader (only when displaced > LEADER_MIN) → label.
@@ -274,7 +274,7 @@ def main():
     # Scoring weights (all additive; lower = better)
     W_OVERLAP  = 500.0   # per overlapping placed label
     W_CROSS    = 60.0    # per leader segment that crosses a placed label bbox
-    W_DIST     = 8.0     # per unit of R_MULTS (strongly prefer adjacent slot)
+    W_DIST     = 8.0     # per unit of C_MULTS (strongly prefer adjacent slot)
     W_DIR      = 4.0     # per π-radian deviation from preferred clear direction
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
@@ -409,7 +409,7 @@ def main():
         print(f"    [{city_info[i]['translation'][:20]}] "
               f"hw={label_hw[i]/1000:.1f} km  hh={label_hh[i]/1000:.1f} km  "
               f"half_diag={np.hypot(label_hw[i], label_hh[i])/1000:.1f} km  "
-              f"r_min={( np.hypot(label_hw[i], label_hh[i])*R_MULTS[0] + DOT_GAP)/1000:.1f} km")
+              f"r_edge_approx={( np.hypot(label_hw[i], label_hh[i])*(1+PAD) + DOT_GAP)/1000:.1f} km")
     map_w_km = (xmax - xmin) / 1000
     map_h_km = (ymax - ymin) / 1000
     print(f"  map extent: {map_w_km:.0f} × {map_h_km:.0f} km")
