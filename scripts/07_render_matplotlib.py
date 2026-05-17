@@ -398,6 +398,18 @@ def main():
     for t in temp_texts:
         t.remove()
 
+    # ── DEBUG: bbox scale sanity check ────────────────────────────────────────
+    print("  bbox scale (first 5 labels):")
+    for i in range(min(5, len(city_info))):
+        print(f"    [{city_info[i]['translation'][:20]}] "
+              f"hw={label_hw[i]/1000:.1f} km  hh={label_hh[i]/1000:.1f} km  "
+              f"half_diag={np.hypot(label_hw[i], label_hh[i])/1000:.1f} km  "
+              f"r_min={( np.hypot(label_hw[i], label_hh[i])*R_MULTS[0] + DOT_GAP)/1000:.1f} km")
+    map_w_km = (xmax - xmin) / 1000
+    map_h_km = (ymax - ymin) / 1000
+    print(f"  map extent: {map_w_km:.0f} × {map_h_km:.0f} km")
+    # ── END DEBUG ─────────────────────────────────────────────────────────────
+
     # ── Stage 5: greedy candidate-position placement ──────────────────────────
     def _seg_clips_box(x1, y1, x2, y2, bx0, by0, bx1, by1):
         """Liang-Barsky: True if segment (x1,y1)→(x2,y2) intersects AABB."""
@@ -481,10 +493,30 @@ def main():
                     best_cx, best_cy = cx, cy
 
         if best_cx is None:   # all candidates out-of-bounds → place at dot
+            print(f"    FALLBACK (all candidates OOB): {d['translation']}")
             best_cx, best_cy = dot_x, dot_y
 
         placed.append((best_cx, best_cy, hw, hh))
         results.append((best_cx, best_cy, hw, hh, d))
+
+    # ── DEBUG: final overlap audit ─────────────────────────────────────────────
+    n_at_dot = sum(
+        1 for (cx, cy, hw, hh, d) in results
+        if cx == d["cx"] and cy == d["cy"]
+    )
+    print(f"  labels at dot position (fallback): {n_at_dot}")
+    overlap_pairs = [
+        (d1["translation"], d2["translation"])
+        for i, (cx1, cy1, hw1, hh1, d1) in enumerate(results)
+        for j, (cx2, cy2, hw2, hh2, d2) in enumerate(results)
+        if j > i
+        and abs(cx1 - cx2) < hw1 + hw2
+        and abs(cy1 - cy2) < hh1 + hh2
+    ]
+    print(f"  overlapping pairs in final layout: {len(overlap_pairs)}")
+    for a, b in overlap_pairs[:15]:
+        print(f"    '{a}' ↔ '{b}'")
+    # ── END DEBUG ─────────────────────────────────────────────────────────────
 
     # ── Stage 6: draw dots, leaders, labels, transliterations ─────────────────
     renderer = fig.canvas.get_renderer()
