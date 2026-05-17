@@ -104,7 +104,7 @@ def _font_sizes(pop: float):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--dpi",  type=int,   default=300)
+    p.add_argument("--dpi",  type=int,   default=200)
     p.add_argument("--out",  type=str,   default=None)
     args = p.parse_args()
 
@@ -288,7 +288,7 @@ def main():
     # coastal clusters (PRD, Yangtze Delta) point labels toward the ocean.
     # Singletons fall back to the sparsest 45° density sector.
     CLUSTER_R   = 150_000   # 150 km clustering threshold
-    INIT_OFFSET = min(xmax - xmin, ymax - ymin) * 0.014
+    INIT_OFFSET = min(xmax - xmin, ymax - ymin) * 0.025
 
     geom_list = [(row.geometry.x, row.geometry.y)
                  for _, row in cities_thin.iterrows()]
@@ -370,8 +370,10 @@ def main():
                     ha="left", va="bottom",
                     path_effects=buf, zorder=9, visible=True)
         texts.append(t)
+        root_i = _find(idx)
         city_info.append({"cx": x, "cy": y, "translit": translit,
-                           "pop": pop, "sz_small": sz_small, "clear_dir": cd})
+                           "pop": pop, "sz_small": sz_small, "clear_dir": cd,
+                           "is_cluster": len(_cluster_members[root_i]) > 1})
 
     print(f"  label candidates: {len(texts)}")
     fig.canvas.draw()
@@ -400,93 +402,62 @@ def main():
         lbl_hw.append(w / 2 * (1 + PAD))
         lbl_hh.append(combined_h / 2 * (1 + PAD))
 
-    # ── Angular sweep: polar-coordinate placement ─────────────────────────────
-    # For each label, sweep N_ANGLES directions (polar coords from city dot).
-    # At each angle, use interval arithmetic on axis projections to compute the
-    # exact minimum distance d needed so the label bbox clears every other label.
-    # Score = d + angle_deviation_from_preferred × ANGLE_COST (in metres).
-    # Repeat N_SWEEP rounds; each round updates positions greedily so subsequent
-    # labels see already-improved placements.
-    N_ANGLES     = 24                    # 15° resolution
-    SWEEP_ANGLES = [i * 2 * np.pi / N_ANGLES for i in range(N_ANGLES)]
-    BUF_ANG      = 12_000               # clearance gap appended after overlap (m)
-    ANGLE_COST   = 80_000               # m-equivalent per radian of deviation
-    MIN_DIST     = 35_000               # minimum label displacement from dot (m)
-    N_SWEEP      = 8
+    # ── Centrifugal physics ───────────────────────────────────────────────────
+    # For cluster members: a centrifugal attractor pulls each label toward
+    #   dot + clear_dir × TARGET_R  (radially outward from cluster centroid).
+    # For singletons: a weak spring toward the initial sector-based position.
+    # Pairwise repulsion resolves bbox overlaps; the attractor restores
+    # radial character so labels don't all drift in one direction.
+    BUF_M        = 12_000   # gap after each pairwise push (m)
+    TARGET_R     = 80_000   # target distance from dot to label centre (m)
+    CENTRIFUGE_K = 0.08     # attractor strength for cluster members
+    SPRING_K     = 0.005    # spring strength for singletons
+    N_ITER       = 400
 
     n = len(texts)
-    pref_angles = [np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
-                   for d in city_info]
+    pref_cx = list(lbl_cx)   # initial preferred positions (singleton spring target)
+    pref_cy = list(lbl_cy)
 
-    def _clear_dist(dot_x, dot_y, hw_i, hh_i, angle, skip_i):
-        """Min d ≥ 0 along angle so bbox(i) centred at dot+(d·cos,d·sin) clears all."""
-        cos_a, sin_a = np.cos(angle), np.sin(angle)
-        intervals = []
-        for j in range(n):
-            if j == skip_i:
-                continue
-            HW = hw_i + lbl_hw[j]
-            HH = hh_i + lbl_hh[j]
-            Dx = lbl_cx[j] - dot_x
-            Dy = lbl_cy[j] - dot_y
-            # X projection: |d·cos_a − Dx| < HW
-            if abs(cos_a) > 1e-9:
-                lo_x, hi_x = sorted([(Dx - HW) / cos_a, (Dx + HW) / cos_a])
-            elif abs(Dx) < HW:
-                lo_x, hi_x = -1e15, 1e15
-            else:
-                continue
-            # Y projection: |d·sin_a − Dy| < HH
-            if abs(sin_a) > 1e-9:
-                lo_y, hi_y = sorted([(Dy - HH) / sin_a, (Dy + HH) / sin_a])
-            elif abs(Dy) < HH:
-                lo_y, hi_y = -1e15, 1e15
-            else:
-                continue
-            lo, hi = max(lo_x, lo_y), min(hi_x, hi_y)
-            if lo < hi and hi > 0:
-                intervals.append((max(0.0, lo), hi))
-        if not intervals:
-            return 0.0
-        intervals.sort()
-        d, pushed = 0.0, False
-        for lo, hi in intervals:
-            if lo > d + 1e-3:
-                break
-            if hi > d:
-                d, pushed = hi, True
-        return d + BUF_ANG if pushed else 0.0
+    # Pre-compute centrifugal targets for cluster members
+    centrifuge_tx = [d["cx"] + d["clear_dir"][0] * TARGET_R for d in city_info]
+    centrifuge_ty = [d["cy"] + d["clear_dir"][1] * TARGET_R for d in city_info]
 
-    print(f"  angular sweep ({N_ANGLES} angles × {N_SWEEP} rounds) for {n} labels...")
-    for sweep_round in range(N_SWEEP):
-        total_moved = 0.0
+    print(f"  centrifugal physics ({N_ITER} max iter) for {n} labels...")
+    for iteration in range(N_ITER):
+        any_overlap = False
         for i in range(n):
-            dot_x, dot_y = city_info[i]["cx"], city_info[i]["cy"]
-            pref_a       = pref_angles[i]
-            best_score   = float("inf")
-            best_cx, best_cy = lbl_cx[i], lbl_cy[i]
-            for angle in SWEEP_ANGLES:
-                dist = max(_clear_dist(dot_x, dot_y, lbl_hw[i], lbl_hh[i], angle, i),
-                           MIN_DIST)
-                cx_try = dot_x + dist * np.cos(angle)
-                cy_try = dot_y + dist * np.sin(angle)
-                if not (xmin + lbl_hw[i] <= cx_try <= xmax - lbl_hw[i] and
-                        ymin + lbl_hh[i] <= cy_try <= ymax - lbl_hh[i]):
-                    continue
-                ang_dev = abs(np.arctan2(np.sin(angle - pref_a),
-                                         np.cos(angle - pref_a)))
-                score = dist + ang_dev * ANGLE_COST
-                if score < best_score:
-                    best_score = score
-                    best_cx, best_cy = cx_try, cy_try
-            old_cx, old_cy = lbl_cx[i], lbl_cy[i]
-            lbl_cx[i], lbl_cy[i] = best_cx, best_cy
-            total_moved += np.hypot(lbl_cx[i] - old_cx, lbl_cy[i] - old_cy)
-        avg_km = total_moved / n / 1000
-        print(f"    round {sweep_round + 1}: avg movement {avg_km:.1f} km")
-        if avg_km < 0.5:
-            print(f"  converged after {sweep_round + 1} rounds")
+            for j in range(i + 1, n):
+                dx = lbl_cx[i] - lbl_cx[j]
+                dy = lbl_cy[i] - lbl_cy[j]
+                ox = (lbl_hw[i] + lbl_hw[j]) - abs(dx)
+                oy = (lbl_hh[i] + lbl_hh[j]) - abs(dy)
+                if ox > 0 and oy > 0:
+                    any_overlap = True
+                    if ox <= oy:
+                        push = ox / 2 + BUF_M
+                        sign = 1 if dx >= 0 else -1
+                        lbl_cx[i] += sign * push
+                        lbl_cx[j] -= sign * push
+                    else:
+                        push = oy / 2 + BUF_M
+                        sign = 1 if dy >= 0 else -1
+                        lbl_cy[i] += sign * push
+                        lbl_cy[j] -= sign * push
+        for i in range(n):
+            if city_info[i]["is_cluster"]:
+                lbl_cx[i] += (centrifuge_tx[i] - lbl_cx[i]) * CENTRIFUGE_K
+                lbl_cy[i] += (centrifuge_ty[i] - lbl_cy[i]) * CENTRIFUGE_K
+            else:
+                lbl_cx[i] += (pref_cx[i] - lbl_cx[i]) * SPRING_K
+                lbl_cy[i] += (pref_cy[i] - lbl_cy[i]) * SPRING_K
+        for i in range(n):
+            lbl_cx[i] = max(xmin + lbl_hw[i], min(xmax - lbl_hw[i], lbl_cx[i]))
+            lbl_cy[i] = max(ymin + lbl_hh[i], min(ymax - lbl_hh[i], lbl_cy[i]))
+        if not any_overlap:
+            print(f"  converged after {iteration + 1} iterations")
             break
+    else:
+        print(f"  did not converge after {N_ITER} iterations")
 
     # ── Stage 3: update text positions, draw dots / leaders / translits ───────
     for i, (t, d) in enumerate(zip(texts, city_info)):
