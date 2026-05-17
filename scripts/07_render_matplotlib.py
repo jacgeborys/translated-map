@@ -90,14 +90,12 @@ def _transliteration(row) -> str:
 
 
 def _font_sizes(pop: float):
-    """Return (main_pt, small_pt). Scale anchored at 1 M pop minimum."""
+    """Return (main_pt, small_pt). Three tiers anchored at 1 M pop minimum."""
     if pop >= 10_000_000:
-        main = 8
-    elif pop >= 5_000_000:
         main = 7
-    elif pop >= 3_000_000:
+    elif pop >= 5_000_000:
         main = 6
-    else:   # 1 M – 3 M
+    else:   # 1 M – 5 M
         main = 5
     return main, round(main * 0.75, 1)
 
@@ -265,9 +263,10 @@ def main():
 
     THIN_M     = 50_000    # thinning radius (m)
     CLUSTER_R  = 150_000   # cluster radius for clear-direction (m)
-    PAD        = 0.10      # fractional padding on measured half-extents
+    PAD        = 0.05      # fractional padding on measured half-extents
     DOT_GAP    = 5_000     # clearance: dot centre → label-bbox near edge (m)
     LEADER_MIN = 10_000    # draw leader only when dot→bbox-edge exceeds this (m)
+    MAX_LEADER = 500_000   # revert to natural pos if leader would exceed this (m)
     N_ANG      = 24        # candidate angles (every 15° around dot)
     C_MULTS    = [1.0, 1.8, 3.0, 5.0]   # clearance multipliers: r = k×r_edge(θ)+DOT_GAP
 
@@ -403,18 +402,6 @@ def main():
 
     for t in temp_texts:
         t.remove()
-
-    # ── DEBUG: bbox scale sanity check ────────────────────────────────────────
-    print("  bbox scale (first 5 labels):")
-    for i in range(min(5, len(city_info))):
-        print(f"    [{city_info[i]['translation'][:20]}] "
-              f"hw={label_hw[i]/1000:.1f} km  hh={label_hh[i]/1000:.1f} km  "
-              f"half_diag={np.hypot(label_hw[i], label_hh[i])/1000:.1f} km  "
-              f"r_edge_approx={( np.hypot(label_hw[i], label_hh[i])*(1+PAD) + DOT_GAP)/1000:.1f} km")
-    map_w_km = (xmax - xmin) / 1000
-    map_h_km = (ymax - ymin) / 1000
-    print(f"  map extent: {map_w_km:.0f} × {map_h_km:.0f} km")
-    # ── END DEBUG ─────────────────────────────────────────────────────────────
 
     # ── Stage 5: greedy candidate-position placement ──────────────────────────
     def _seg_clips_box(x1, y1, x2, y2, bx0, by0, bx1, by1):
@@ -620,6 +607,25 @@ def main():
             break
     else:
         print(f"    did not converge after {RESOLVE_ITER} rounds")
+
+    # ── Post-process: revert outlier leaders to natural position ──────────────
+    # A label whose leader would be > MAX_LEADER is reverted so that no single
+    # line is an extreme outlier compared to the rest.  We accept the overlap
+    # rather than showing a 10× longer leader than every other city.
+    reverted = 0
+    for i in range(n):
+        cx, cy, hw, hh, d = results[i]
+        nx = max(cx - hw, min(d["cx"], cx + hw))
+        ny = max(cy - hh, min(d["cy"], cy + hh))
+        llen = np.hypot(nx - d["cx"], ny - d["cy"])
+        if llen > MAX_LEADER:
+            pref_angle = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+            nat_cx, nat_cy = _natural_pos(hw, hh, d["cx"], d["cy"], pref_angle)
+            results[i] = (nat_cx, nat_cy, hw, hh, d)
+            placed[i]  = (nat_cx, nat_cy, hw, hh)
+            reverted  += 1
+    if reverted:
+        print(f"  reverted {reverted} outlier-leader labels to natural position")
 
     # ── Placement summary ──────────────────────────────────────────────────────
     with_leaders = []
