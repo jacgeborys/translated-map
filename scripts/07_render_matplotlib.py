@@ -439,8 +439,6 @@ def main():
         return True
 
     ANGLES  = [k * 2 * np.pi / N_ANG for k in range(N_ANG)]
-    placed  = []    # (cx, cy, hw, hh) confirmed label bboxes (parallel to results)
-    results = []    # (cx, cy, hw, hh, city_info_dict) for final rendering
 
     # All dot positions for ambiguity constraint (built once, used in closure).
     all_dots = [(d["cx"], d["cy"]) for d in city_info]
@@ -515,60 +513,113 @@ def main():
                     best_cx, best_cy = cx, cy
         return best_cx, best_cy, best_score
 
-    # ── Greedy placement (population priority order) ───────────────────────────
-    print(f"  greedy placement for {len(city_info)} labels...")
+    # ── Natural placement (k_mult=1.0, preferred direction, no avoidance) ────────
+    def _natural_pos(hw, hh, dot_x, dot_y, pref_angle):
+        """Place label at k_mult=1.0 in preferred direction.
+        Tries angles in order of deviation from preferred; falls back to
+        k_mult=1.8 if every k_mult=1.0 slot is out-of-bounds."""
+        hw_u = hw / (1 + PAD)
+        hh_u = hh / (1 + PAD)
+        angles_by_pref = sorted(ANGLES,
+            key=lambda a: abs(((a - pref_angle + np.pi) % (2 * np.pi)) - np.pi))
+        for k_mult in [1.0, 1.8]:
+            for angle in angles_by_pref:
+                cos_a, sin_a = np.cos(angle), np.sin(angle)
+                r_edge = min(hw_u / max(abs(cos_a), 1e-10),
+                             hh_u / max(abs(sin_a), 1e-10))
+                r  = k_mult * r_edge + DOT_GAP
+                cx = dot_x + r * cos_a
+                cy = dot_y + r * sin_a
+                if xmin + hw < cx < xmax - hw and ymin + hh < cy < ymax - hh:
+                    return cx, cy
+        return dot_x, dot_y   # last resort
+
+    placed  = []   # (cx, cy, hw, hh)  — parallel to city_info / results
+    results = []   # (cx, cy, hw, hh, d)
+
     for i, d in enumerate(city_info):
         hw = label_hw[i]
         hh = label_hh[i]
-        dot_x, dot_y = d["cx"], d["cy"]
-        pref_angle   = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+        pref_angle = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+        cx, cy = _natural_pos(hw, hh, d["cx"], d["cy"], pref_angle)
+        placed.append((cx, cy, hw, hh))
+        results.append((cx, cy, hw, hh, d))
 
-        best_cx, best_cy, _ = _best_candidate(hw, hh, dot_x, dot_y, pref_angle, placed, dot_idx=i)
+    # ── Conflict detection: BFS connected components of overlapping labels ─────
+    n = len(results)
+    adj = [[] for _ in range(n)]
+    for i in range(n):
+        cx1, cy1, hw1, hh1 = placed[i]
+        for j in range(i + 1, n):
+            cx2, cy2, hw2, hh2 = placed[j]
+            if abs(cx1 - cx2) < hw1 + hw2 and abs(cy1 - cy2) < hh1 + hh2:
+                adj[i].append(j)
+                adj[j].append(i)
 
-        if best_cx is None:
-            print(f"    FALLBACK (all OOB): {d['translation']}")
-            best_cx, best_cy = dot_x, dot_y
+    visited  = [False] * n
+    groups   = []          # list of sorted index lists (conflicted)
+    isolated = set()       # indices with no conflicts at natural position
 
-        placed.append((best_cx, best_cy, hw, hh))
-        results.append((best_cx, best_cy, hw, hh, d))
+    for start in range(n):
+        if visited[start]:
+            continue
+        visited[start] = True
+        if not adj[start]:
+            isolated.add(start)
+            continue
+        group, queue = [], [start]
+        while queue:
+            node = queue.pop(0)
+            group.append(node)
+            for nb in adj[node]:
+                if not visited[nb]:
+                    visited[nb] = True
+                    queue.append(nb)
+        groups.append(group)
 
-    # ── Relaxation pass: move displaced labels to adjacent slots ───────────────
-    # Gauss-Seidel style: remove label i, re-optimise against the remaining
-    # placed labels, accept if the leader shrinks by > 1 km. Repeat until
-    # convergence. This unwinds greedy cascades (A displaced B which displaced C…).
-    RELAX_ITER = 25
-    print(f"  relaxation ({RELAX_ITER} max rounds)...")
-    for relax_round in range(RELAX_ITER):
+    conflicted = {i for g in groups for i in g}
+
+    # ── Report conflict groups ─────────────────────────────────────────────────
+    print(f"\n  Natural placement: {len(isolated)} isolated  |  "
+          f"{len(groups)} conflict groups  |  {len(conflicted)} conflicted labels")
+    for g_idx, group in enumerate(sorted(groups, key=len, reverse=True)):
+        names = [results[i][4]["translation"] for i in
+                 sorted(group, key=lambda i: -results[i][4]["pop"])]
+        print(f"  group {g_idx + 1:2d} ({len(group):2d}): {', '.join(names)}")
+
+    # ── Resolve only conflicted labels (isolated labels are immovable) ─────────
+    # Multiple rounds of Gauss-Seidel: remove label i from placed, find best
+    # candidate against all others (including immovable isolated labels), accept
+    # if it reduces overlap or leader length.
+    RESOLVE_ITER = 30
+    print(f"\n  Resolving {len(conflicted)} conflicted labels "
+          f"({RESOLVE_ITER} max rounds)...")
+    for round_num in range(RESOLVE_ITER):
         improved = 0
-        for i in range(len(results)):
+        # Process in population order (big cities first) so they claim best slots
+        priority = sorted(conflicted, key=lambda i: -results[i][4]["pop"])
+        for i in priority:
             cx_cur, cy_cur, hw, hh, d = results[i]
-            nx0 = max(cx_cur - hw, min(d["cx"], cx_cur + hw))
-            ny0 = max(cy_cur - hh, min(d["cy"], cy_cur + hh))
-            leader_cur = np.hypot(nx0 - d["cx"], ny0 - d["cy"])
-            if leader_cur <= LEADER_MIN:
-                continue   # already adjacent
-
+            others = [placed[j] for j in range(n) if j != i]
             dot_x, dot_y = d["cx"], d["cy"]
             pref_angle = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
-            others = [placed[j] for j in range(len(placed)) if j != i]
 
-            best_cx_r, best_cy_r, _ = _best_candidate(
+            best_cx, best_cy, best_score = _best_candidate(
                 hw, hh, dot_x, dot_y, pref_angle, others, dot_idx=i)
 
-            if best_cx_r is not None:
-                nx = max(best_cx_r - hw, min(dot_x, best_cx_r + hw))
-                ny = max(best_cy_r - hh, min(dot_y, best_cy_r + hh))
-                leader_new = np.hypot(nx - dot_x, ny - dot_y)
-                if leader_new < leader_cur - 1_000:
-                    results[i] = (best_cx_r, best_cy_r, hw, hh, d)
-                    placed[i]  = (best_cx_r, best_cy_r, hw, hh)
-                    improved  += 1
+            if best_cx is None:
+                best_cx, best_cy = dot_x, dot_y
+
+            if best_cx != cx_cur or best_cy != cy_cur:
+                results[i] = (best_cx, best_cy, hw, hh, d)
+                placed[i]  = (best_cx, best_cy, hw, hh)
+                improved  += 1
 
         if improved == 0:
-            print(f"    converged after {relax_round + 1} rounds")
+            print(f"    converged after {round_num + 1} rounds")
             break
     else:
-        print(f"    did not converge after {RELAX_ITER} rounds")
+        print(f"    did not converge after {RESOLVE_ITER} rounds")
 
     # ── Placement summary ──────────────────────────────────────────────────────
     with_leaders = []
