@@ -250,26 +250,36 @@ def main():
     if not motorways.empty:
         motorways.plot(ax=ax, color=COL_MOTORWAY, linewidth=1.1, zorder=3.2)
 
-    # ── City labels — polar-coordinate angular sweep placement ───────────────
-    # Stage 1: spatial thinning — suppress weaker city within THIN_M radius.
-    # Stage 2: compute each city's preferred direction (outward from its local
-    #          cluster centroid; singletons use sparsest density sector).
-    #          Place labels there, measure bboxes, then run N_SWEEP rounds of
-    #          angular sweep: for each of N_ANGLES candidate directions, compute
-    #          via interval arithmetic the minimum polar distance needed to clear
-    #          all other current label positions; score by distance + deviation
-    #          from preferred direction; keep the best angle each round.
-    # Stage 3: update text anchors, draw leader lines dot→bbox edge.
-    # Result: each label finds the nearest clear position in the direction that
-    #         most naturally exits its cluster (ocean for coastal cities).
+    # ── City labels — discrete candidate-position greedy placement ───────────
+    # Imhof (1975) / PAL-style algorithm:
+    # 1. Spatial thinning: suppress weaker city within THIN_M radius.
+    # 2. Cluster detection (union-find at CLUSTER_R): each label gets a clear
+    #    direction pointing away from its cluster centroid; singletons use the
+    #    sparsest 45° density sector.
+    # 3. Measure label bboxes by rendering invisible placeholder texts.
+    # 4. Greedy placement in priority order (population desc):
+    #    • generate N_ANG angles × len(R_MULTS) radii candidates per dot
+    #    • score: overlap count + leader-crosses-label + distance + dir deviation
+    #    • pick lowest-score candidate; record bbox as occupied
+    # 5. Draw: city dot → leader (only when displaced > LEADER_MIN) → label.
 
-    THIN_M   = 50_000   # thinning radius (m)
-    PAD      = 0.12     # fractional padding on half-extents
+    THIN_M     = 50_000    # thinning radius (m)
+    CLUSTER_R  = 150_000   # cluster radius for clear-direction (m)
+    PAD        = 0.10      # fractional padding on measured half-extents
+    DOT_GAP    = 5_000     # clearance: dot centre → label-bbox near edge (m)
+    LEADER_MIN = 18_000    # draw leader only when dot→bbox-edge exceeds this (m)
+    N_ANG      = 16        # candidate angles (evenly spaced around dot)
+    R_MULTS    = [1.2, 2.0, 3.2, 5.0]   # radii as multiples of label half-diagonal
+
+    # Scoring weights (all additive; lower = better)
+    W_OVERLAP  = 500.0   # per overlapping placed label
+    W_CROSS    = 60.0    # per leader segment that crosses a placed label bbox
+    W_DIST     = 8.0     # per unit of R_MULTS (strongly prefer adjacent slot)
+    W_DIR      = 4.0     # per π-radian deviation from preferred clear direction
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
 
     # ── Stage 1: spatial thinning ─────────────────────────────────────────────
-    # cities already sorted: allowlist first, then population descending.
     geoms_all = list(cities.geometry)
     excl = set()
     for i in range(len(cities)):
@@ -282,24 +292,17 @@ def main():
     cities_thin = cities.iloc[[k for k in range(len(cities)) if k not in excl]]
     print(f"  cities after thinning: {len(cities_thin)}")
 
-    # ── Compute clear direction for each city ─────────────────────────────────
-    # Cities within CLUSTER_R of each other form a cluster (union-find).
-    # Each city's clear direction = from its cluster centroid to itself, so
-    # coastal clusters (PRD, Yangtze Delta) point labels toward the ocean.
-    # Singletons fall back to the sparsest 45° density sector.
-    CLUSTER_R   = 150_000   # 150 km clustering threshold
-    INIT_OFFSET = min(xmax - xmin, ymax - ymin) * 0.025
-
+    # ── Stage 2: preferred direction (centrifugal from cluster centroid) ──────
+    from collections import defaultdict
     geom_list = [(row.geometry.x, row.geometry.y)
                  for _, row in cities_thin.iterrows()]
     m = len(geom_list)
 
-    # Union-Find
     parent = list(range(m))
-    def _find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]; x = parent[x]
-        return x
+    def _find(v):
+        while parent[v] != v:
+            parent[v] = parent[parent[v]]; v = parent[v]
+        return v
     for i in range(m):
         for j in range(i + 1, m):
             if np.hypot(geom_list[i][0] - geom_list[j][0],
@@ -308,7 +311,6 @@ def main():
                 if ri != rj:
                     parent[ri] = rj
 
-    from collections import defaultdict
     _cluster_members = defaultdict(list)
     for i in range(m):
         _cluster_members[_find(i)].append(i)
@@ -318,7 +320,6 @@ def main():
         for root, mems in _cluster_members.items()
     }
 
-    # Sector fallback (for singletons or cities exactly at centroid)
     N_SECTORS  = 8
     SECTOR_ANG = [i * 2 * np.pi / N_SECTORS for i in range(N_SECTORS)]
     SECTOR_R   = 600_000
@@ -334,23 +335,22 @@ def main():
             if dist > 500:
                 clear_dirs.append((dx / dist, dy / dist))
                 continue
-        # Singleton or at centroid: use sparsest sector
+        # Singleton or at centroid: sparsest density sector
         counts = np.zeros(N_SECTORS)
         for j, (xj, yj) in enumerate(geom_list):
             if j == i:
                 continue
-            d = np.hypot(xj - xi, yj - yi)
-            if d < SECTOR_R:
+            d_ij = np.hypot(xj - xi, yj - yi)
+            if d_ij < SECTOR_R:
                 ang = np.arctan2(yj - yi, xj - xi) % (2 * np.pi)
                 sec = int(ang / (2 * np.pi) * N_SECTORS) % N_SECTORS
-                counts[sec] += 1.0 - d / SECTOR_R
+                counts[sec] += 1.0 - d_ij / SECTOR_R
         best_sec = int(np.argmin(counts))
         clear_dirs.append((np.cos(SECTOR_ANG[best_sec]),
                            np.sin(SECTOR_ANG[best_sec])))
 
-    # ── Stage 2: place at preferred positions and measure bboxes ──────────────
+    # ── Stage 3: collect label metadata ───────────────────────────────────────
     city_info = []
-    texts = []
     for idx, (_, row) in enumerate(cities_thin.iterrows()):
         pop  = float(row["population"])
         x, y = row.geometry.x, row.geometry.y
@@ -361,150 +361,176 @@ def main():
         translit    = row["_transliteration"]
         if not translation:
             continue
-        cd    = clear_dirs[idx]
-        off_x = cd[0] * INIT_OFFSET
-        off_y = cd[1] * INIT_OFFSET
-        t = ax.text(x + off_x, y + off_y, translation,
-                    fontsize=sz_main, color=COL_LABEL,
-                    fontweight="bold" if pop >= 5_000_000 else "normal",
-                    ha="left", va="bottom",
-                    path_effects=buf, zorder=9, visible=True)
-        texts.append(t)
-        root_i = _find(idx)
-        city_info.append({"cx": x, "cy": y, "translit": translit,
-                           "pop": pop, "sz_small": sz_small, "clear_dir": cd,
-                           "is_cluster": len(_cluster_members[root_i]) > 1})
+        city_info.append({
+            "cx": x, "cy": y, "pop": pop,
+            "sz_main": sz_main, "sz_small": sz_small,
+            "translation": translation, "translit": translit,
+            "clear_dir": clear_dirs[idx],
+            "bold": pop >= 5_000_000,
+        })
+    print(f"  label candidates: {len(city_info)}")
 
-    print(f"  label candidates: {len(texts)}")
+    # ── Stage 4: measure bboxes by rendering invisible placeholder texts ───────
+    temp_texts = []
+    for d in city_info:
+        t = ax.text(d["cx"], d["cy"], d["translation"],
+                    fontsize=d["sz_main"], color=COL_LABEL,
+                    fontweight="bold" if d["bold"] else "normal",
+                    ha="left", va="bottom",
+                    path_effects=buf, zorder=9, visible=False)
+        temp_texts.append(t)
+
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    # Capture inv AFTER draw so set_aspect("equal") has finalised the transform
     inv = ax.transData.inverted()
 
-    # Convert display bboxes → data-unit centres and half-extents.
-    # Use actual measured corners (not analytic) for accuracy.
-    # Expand height by ~1.8× to account for the transliteration line drawn above.
-    lbl_cx, lbl_cy = [], []   # label box centre (data units)
-    lbl_hw, lbl_hh = [], []   # half-width / half-height (padded)
-
-    for t, d in zip(texts, city_info):
+    label_hw = []   # padded half-width in data units
+    label_hh = []   # padded combined half-height (main + translit line)
+    for t in temp_texts:
         bb = t.get_window_extent(renderer=renderer)
         x0d, y0d = inv.transform((bb.x0, bb.y0))
         x1d, y1d = inv.transform((bb.x1, bb.y1))
-        w  = abs(x1d - x0d)
-        h  = abs(y1d - y0d)
-        cx = (x0d + x1d) / 2
-        cy = (y0d + y1d) / 2
-        # Expand upward to cover the translit line (≈ 0.8 × main height + gap)
-        combined_h = h * 1.85
-        cy += (combined_h - h) / 2   # shift centre upward
-        lbl_cx.append(cx);  lbl_cy.append(cy)
-        lbl_hw.append(w / 2 * (1 + PAD))
-        lbl_hh.append(combined_h / 2 * (1 + PAD))
+        w = abs(x1d - x0d)
+        h = abs(y1d - y0d) * 1.85   # expand to cover transliteration line above
+        label_hw.append(w / 2 * (1 + PAD))
+        label_hh.append(h / 2 * (1 + PAD))
 
-    # ── Centrifugal physics ───────────────────────────────────────────────────
-    # For cluster members: a centrifugal attractor pulls each label toward
-    #   dot + clear_dir × TARGET_R  (radially outward from cluster centroid).
-    # For singletons: a weak spring toward the initial sector-based position.
-    # Pairwise repulsion resolves bbox overlaps; the attractor restores
-    # radial character so labels don't all drift in one direction.
-    BUF_M        = 12_000   # gap after each pairwise push (m)
-    TARGET_R     = 80_000   # target distance from dot to label centre (m)
-    CENTRIFUGE_K = 0.08     # attractor strength for cluster members
-    SPRING_K     = 0.005    # spring strength for singletons
-    N_ITER       = 400
+    for t in temp_texts:
+        t.remove()
 
-    n = len(texts)
-    pref_cx = list(lbl_cx)   # initial preferred positions (singleton spring target)
-    pref_cy = list(lbl_cy)
-
-    # Pre-compute centrifugal targets for cluster members
-    centrifuge_tx = [d["cx"] + d["clear_dir"][0] * TARGET_R for d in city_info]
-    centrifuge_ty = [d["cy"] + d["clear_dir"][1] * TARGET_R for d in city_info]
-
-    print(f"  centrifugal physics ({N_ITER} max iter) for {n} labels...")
-    for iteration in range(N_ITER):
-        any_overlap = False
-        for i in range(n):
-            for j in range(i + 1, n):
-                dx = lbl_cx[i] - lbl_cx[j]
-                dy = lbl_cy[i] - lbl_cy[j]
-                ox = (lbl_hw[i] + lbl_hw[j]) - abs(dx)
-                oy = (lbl_hh[i] + lbl_hh[j]) - abs(dy)
-                if ox > 0 and oy > 0:
-                    any_overlap = True
-                    if ox <= oy:
-                        push = ox / 2 + BUF_M
-                        sign = 1 if dx >= 0 else -1
-                        lbl_cx[i] += sign * push
-                        lbl_cx[j] -= sign * push
-                    else:
-                        push = oy / 2 + BUF_M
-                        sign = 1 if dy >= 0 else -1
-                        lbl_cy[i] += sign * push
-                        lbl_cy[j] -= sign * push
-        for i in range(n):
-            if city_info[i]["is_cluster"]:
-                lbl_cx[i] += (centrifuge_tx[i] - lbl_cx[i]) * CENTRIFUGE_K
-                lbl_cy[i] += (centrifuge_ty[i] - lbl_cy[i]) * CENTRIFUGE_K
+    # ── Stage 5: greedy candidate-position placement ──────────────────────────
+    def _seg_clips_box(x1, y1, x2, y2, bx0, by0, bx1, by1):
+        """Liang-Barsky: True if segment (x1,y1)→(x2,y2) intersects AABB."""
+        dx, dy = x2 - x1, y2 - y1
+        tmin, tmax = 0.0, 1.0
+        for p, q in ((-dx, x1 - bx0), (dx, bx1 - x1),
+                     (-dy, y1 - by0), (dy, by1 - y1)):
+            if abs(p) < 1e-12:
+                if q < 0:
+                    return False
+            elif p < 0:
+                tval = q / p
+                if tval > tmin:
+                    tmin = tval
             else:
-                lbl_cx[i] += (pref_cx[i] - lbl_cx[i]) * SPRING_K
-                lbl_cy[i] += (pref_cy[i] - lbl_cy[i]) * SPRING_K
-        for i in range(n):
-            lbl_cx[i] = max(xmin + lbl_hw[i], min(xmax - lbl_hw[i], lbl_cx[i]))
-            lbl_cy[i] = max(ymin + lbl_hh[i], min(ymax - lbl_hh[i], lbl_cy[i]))
-        if not any_overlap:
-            print(f"  converged after {iteration + 1} iterations")
-            break
-    else:
-        print(f"  did not converge after {N_ITER} iterations")
+                tval = q / p
+                if tval < tmax:
+                    tmax = tval
+            if tmin > tmax:
+                return False
+        return True
 
-    # ── Stage 3: update text positions, draw dots / leaders / translits ───────
-    for i, (t, d) in enumerate(zip(texts, city_info)):
-        hw = lbl_hw[i] / (1 + PAD)   # actual (unpadded) half-extents
-        hh = lbl_hh[i] / (1 + PAD)
-        # Flip ha if label drifted to the other side of the dot
-        ha    = "left"  if lbl_cx[i] >= d["cx"] else "right"
-        ax_x  = lbl_cx[i] - hw if ha == "left" else lbl_cx[i] + hw
-        ax_y  = lbl_cy[i] - hh   # va="bottom"
-        t.set_position((ax_x, ax_y))
-        t.set_ha(ha)
+    ANGLES  = [k * 2 * np.pi / N_ANG for k in range(N_ANG)]
+    placed  = []    # (cx, cy, hw, hh) confirmed label bboxes
+    results = []    # (cx, cy, hw, hh, city_info_dict) for final rendering
 
-    fig.canvas.draw()
+    print(f"  greedy placement for {len(city_info)} labels...")
+    for i, d in enumerate(city_info):
+        hw = label_hw[i]
+        hh = label_hh[i]
+        half_diag    = np.hypot(hw, hh)
+        dot_x, dot_y = d["cx"], d["cy"]
+        pref_angle   = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+
+        best_score = float("inf")
+        best_cx = best_cy = None
+
+        for r_mult in R_MULTS:
+            r = half_diag * r_mult + DOT_GAP
+            for angle in ANGLES:
+                cx = dot_x + r * np.cos(angle)
+                cy = dot_y + r * np.sin(angle)
+
+                # Keep label inside map extent
+                if not (xmin + hw < cx < xmax - hw and
+                        ymin + hh < cy < ymax - hh):
+                    continue
+
+                # Overlap penalty: count of placed labels whose bbox intersects
+                overlap_pen = sum(
+                    1.0
+                    for (px, py, phw, phh) in placed
+                    if abs(cx - px) < hw + phw and abs(cy - py) < hh + phh
+                )
+
+                # Nearest point on candidate bbox to the dot (leader endpoint)
+                near_x = max(cx - hw, min(dot_x, cx + hw))
+                near_y = max(cy - hh, min(dot_y, cy + hh))
+                leader_len = np.hypot(near_x - dot_x, near_y - dot_y)
+
+                # Leader-crosses-placed-label penalty
+                cross_pen = 0.0
+                if leader_len > LEADER_MIN:
+                    for (px, py, phw, phh) in placed:
+                        if _seg_clips_box(dot_x, dot_y, near_x, near_y,
+                                          px - phw, py - phh,
+                                          px + phw, py + phh):
+                            cross_pen += 1.0
+
+                # Angular deviation from preferred clear direction (0–1)
+                ang_diff = abs(((angle - pref_angle + np.pi) % (2 * np.pi)) - np.pi)
+                dir_pen  = ang_diff / np.pi
+
+                score = (overlap_pen * W_OVERLAP
+                         + cross_pen  * W_CROSS
+                         + r_mult     * W_DIST
+                         + dir_pen    * W_DIR)
+
+                if score < best_score:
+                    best_score = score
+                    best_cx, best_cy = cx, cy
+
+        if best_cx is None:   # all candidates out-of-bounds → place at dot
+            best_cx, best_cy = dot_x, dot_y
+
+        placed.append((best_cx, best_cy, hw, hh))
+        results.append((best_cx, best_cy, hw, hh, d))
+
+    # ── Stage 6: draw dots, leaders, labels, transliterations ─────────────────
     renderer = fig.canvas.get_renderer()
-    print(f"  labels placed: {n}")
 
-    for i, (t, d) in enumerate(zip(texts, city_info)):
-        hw = lbl_hw[i] / (1 + PAD)
-        hh = lbl_hh[i] / (1 + PAD)
-        cx_dot, cy_dot = d["cx"], d["cy"]
+    for cx, cy, hw, hh, d in results:
+        hw_a = hw / (1 + PAD)   # unpadded half-extents for text anchor
+        hh_a = hh / (1 + PAD)
+        dot_x, dot_y = d["cx"], d["cy"]
 
         # City dot
-        dot_size = 3.0 if d["pop"] >= 1_000_000 else 1.8
-        ax.plot(cx_dot, cy_dot, "o",
-                markersize=dot_size, color=COL_DOT,
+        dot_sz = 3.0 if d["pop"] >= 1_000_000 else 1.8
+        ax.plot(dot_x, dot_y, "o",
+                markersize=dot_sz, color=COL_DOT,
                 markeredgecolor="#ffffff", markeredgewidth=0.35, zorder=8)
 
-        # Leader line: dot → nearest point on label bbox edge.
-        # Skip if the dot is already touching or nearly touching the label.
-        bx0, bx1 = lbl_cx[i] - hw, lbl_cx[i] + hw
-        by0, by1 = lbl_cy[i] - hh, lbl_cy[i] + hh
-        near_x = max(bx0, min(cx_dot, bx1))
-        near_y = max(by0, min(cy_dot, by1))
-        leader_len = np.hypot(near_x - cx_dot, near_y - cy_dot)
-        if leader_len > 10_000:   # skip leader if dot is within ~10 km of label
-            ax.plot([cx_dot, near_x], [cy_dot, near_y],
+        # Leader line (only when label is genuinely displaced from dot)
+        near_x = max(cx - hw, min(dot_x, cx + hw))
+        near_y = max(cy - hh, min(dot_y, cy + hh))
+        leader_len = np.hypot(near_x - dot_x, near_y - dot_y)
+        if leader_len > LEADER_MIN:
+            ax.plot([dot_x, near_x], [dot_y, near_y],
                     color=COL_LEADER, linewidth=0.75,
                     solid_capstyle="round", zorder=7)
 
-        # Transliteration always above translation
-        if d["translit"] and d["translit"] != t.get_text():
+        # Text anchor position
+        ha = "left" if cx >= dot_x else "right"
+        tx = cx - hw_a if ha == "left" else cx + hw_a
+        ty = cy - hh_a   # va = "bottom"
+
+        # Main translation label
+        t = ax.text(tx, ty, d["translation"],
+                    fontsize=d["sz_main"], color=COL_LABEL,
+                    fontweight="bold" if d["bold"] else "normal",
+                    ha=ha, va="bottom",
+                    path_effects=buf, zorder=9)
+
+        # Transliteration line above main label
+        if d["translit"] and d["translit"] != d["translation"]:
             bb = t.get_window_extent(renderer=renderer)
             _, y_top = inv.transform((bb.x0, bb.y1))
-            ax.text(t.get_position()[0], y_top, d["translit"],
+            ax.text(tx, y_top, d["translit"],
                     fontsize=d["sz_small"], color=COL_LABEL_SMALL,
-                    ha=t.get_ha(), va="bottom",
+                    ha=ha, va="bottom",
                     path_effects=buf, zorder=9)
+
+    print(f"  labels drawn: {len(results)}")
 
     # ── Save ──────────────────────────────────────────────────────────────────
     print(f"Rendering → {out_path}  ({args.dpi} dpi)")
