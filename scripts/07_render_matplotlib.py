@@ -287,7 +287,7 @@ def main():
     # Each city's clear direction = from its cluster centroid to itself, so
     # coastal clusters (PRD, Yangtze Delta) point labels toward the ocean.
     # Singletons fall back to the sparsest 45° density sector.
-    CLUSTER_R   = 300_000   # 300 km clustering threshold
+    CLUSTER_R   = 150_000   # 150 km clustering threshold
     INIT_OFFSET = min(xmax - xmin, ymax - ymin) * 0.014
 
     geom_list = [(row.geometry.x, row.geometry.y)
@@ -410,7 +410,8 @@ def main():
     N_ANGLES     = 24                    # 15° resolution
     SWEEP_ANGLES = [i * 2 * np.pi / N_ANGLES for i in range(N_ANGLES)]
     BUF_ANG      = 12_000               # clearance gap appended after overlap (m)
-    ANGLE_COST   = 25_000               # m-equivalent per radian of deviation
+    ANGLE_COST   = 80_000               # m-equivalent per radian of deviation
+    MIN_DIST     = 35_000               # minimum label displacement from dot (m)
     N_SWEEP      = 8
 
     n = len(texts)
@@ -465,7 +466,8 @@ def main():
             best_score   = float("inf")
             best_cx, best_cy = lbl_cx[i], lbl_cy[i]
             for angle in SWEEP_ANGLES:
-                dist = _clear_dist(dot_x, dot_y, lbl_hw[i], lbl_hh[i], angle, i)
+                dist = max(_clear_dist(dot_x, dot_y, lbl_hw[i], lbl_hh[i], angle, i),
+                           MIN_DIST)
                 cx_try = dot_x + dist * np.cos(angle)
                 cy_try = dot_y + dist * np.sin(angle)
                 if not (xmin + lbl_hw[i] <= cx_try <= xmax - lbl_hw[i] and
@@ -519,7 +521,7 @@ def main():
         near_x = max(bx0, min(cx_dot, bx1))
         near_y = max(by0, min(cy_dot, by1))
         leader_len = np.hypot(near_x - cx_dot, near_y - cy_dot)
-        if leader_len > 30_000:   # skip leader if dot is within ~30 km of label
+        if leader_len > 10_000:   # skip leader if dot is within ~10 km of label
             ax.plot([cx_dot, near_x], [cy_dot, near_y],
                     color=COL_LEADER, linewidth=0.75,
                     solid_capstyle="round", zorder=7)
