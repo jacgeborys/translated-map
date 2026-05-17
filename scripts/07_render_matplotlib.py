@@ -56,7 +56,7 @@ COL_RAIL_STD = "#ceccc8"   # lighter pale grey
 COL_LABEL       = "#2a2a2a"
 COL_LABEL_SMALL = "#555555"   # stronger grey for transliteration
 COL_DOT         = "#222222"
-COL_LEADER      = "#aaaaaa"   # leader line colour
+COL_LEADER      = "#666666"   # leader line colour
 
 HILLSHADE_URL = (
     "https://services.arcgisonline.com/arcgis/rest/services"
@@ -267,11 +267,10 @@ def main():
 
     THIN_M   = 50_000   # thinning radius (m)
     N_ITER   = 300      # max separation iterations (stops early on convergence)
-    BUF_M    = 2_000    # extra gap beyond bbox edge after each push (m)
+    BUF_M    = 20_000   # extra gap beyond bbox edge after each push (m)
     PAD      = 0.12     # fractional padding on half-extents
 
     buf = [pe.withStroke(linewidth=1.5, foreground=BG)]
-    inv = ax.transData.inverted()
 
     # ── Stage 1: spatial thinning ─────────────────────────────────────────────
     # cities already sorted: allowlist first, then population descending.
@@ -316,24 +315,30 @@ def main():
     print(f"  label candidates: {len(texts)}")
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
+    # Capture inv AFTER draw so set_aspect("equal") has finalised the transform
+    inv = ax.transData.inverted()
 
-    # Convert display bboxes → data-unit centres and half-extents
-    lbl_cx, lbl_cy = [], []       # label box centre (data units)
-    lbl_hw, lbl_hh = [], []       # half-width / half-height (padded)
-    pref_cx, pref_cy = [], []     # preferred centre (spring target)
+    # Convert display bboxes → data-unit centres and half-extents.
+    # Use actual measured corners (not analytic) for accuracy.
+    # Expand height by ~1.8× to account for the transliteration line drawn above.
+    lbl_cx, lbl_cy = [], []   # label box centre (data units)
+    lbl_hw, lbl_hh = [], []   # half-width / half-height (padded)
 
     for t, d in zip(texts, city_info):
-        bb   = t.get_window_extent(renderer=renderer)
+        bb = t.get_window_extent(renderer=renderer)
         x0d, y0d = inv.transform((bb.x0, bb.y0))
         x1d, y1d = inv.transform((bb.x1, bb.y1))
-        w, h = abs(x1d - x0d), abs(y1d - y0d)
-        # anchor is bottom-left (ha=left, va=bottom) → centre offset by (w/2, h/2)
-        cx = d["cx"] + off_x + w / 2
-        cy = d["cy"] + off_y + h / 2
-        lbl_cx.append(cx);   lbl_cy.append(cy)
+        w  = abs(x1d - x0d)
+        h  = abs(y1d - y0d)
+        cx = (x0d + x1d) / 2
+        cy = (y0d + y1d) / 2
+        # Expand upward to cover the translit line (≈ 0.8 × main height + gap)
+        combined_h = h * 1.85
+        cy += (combined_h - h) / 2   # shift centre upward
+        lbl_cx.append(cx)
+        lbl_cy.append(cy)
         lbl_hw.append(w / 2 * (1 + PAD))
-        lbl_hh.append(h / 2 * (1 + PAD))
-        pref_cx.append(cx);  pref_cy.append(cy)
+        lbl_hh.append(combined_h / 2 * (1 + PAD))
 
     # ── Physics loop — iterative separation, no spring ────────────────────────
     # Each round: resolve all overlapping pairs symmetrically (Gauss-Seidel),
@@ -398,14 +403,17 @@ def main():
                 markersize=dot_size, color=COL_DOT,
                 markeredgecolor="#ffffff", markeredgewidth=0.35, zorder=8)
 
-        # Leader line: dot → nearest point on label bbox edge
+        # Leader line: dot → nearest point on label bbox edge.
+        # Skip if the dot is already touching or nearly touching the label.
         bx0, bx1 = lbl_cx[i] - hw, lbl_cx[i] + hw
         by0, by1 = lbl_cy[i] - hh, lbl_cy[i] + hh
         near_x = max(bx0, min(cx_dot, bx1))
         near_y = max(by0, min(cy_dot, by1))
-        ax.plot([cx_dot, near_x], [cy_dot, near_y],
-                color=COL_LEADER, linewidth=1.0,
-                solid_capstyle="round", zorder=7)
+        leader_len = np.hypot(near_x - cx_dot, near_y - cy_dot)
+        if leader_len > 15_000:   # skip leader if dot is within ~15 km of label
+            ax.plot([cx_dot, near_x], [cy_dot, near_y],
+                    color=COL_LEADER, linewidth=1.5,
+                    solid_capstyle="round", zorder=7)
 
         # Transliteration always above translation
         if d["translit"] and d["translit"] != t.get_text():
