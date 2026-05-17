@@ -46,14 +46,29 @@ data/03_processed/places_translated.gpkg + OSM layers
 
 Two-line city labels, English only — no Chinese characters:
 - **Top line** (0.75× size, muted grey `#555555`): romanised name from `name:en` or `name:pinyin`
-- **Bottom line** (full size, dark `#2a2a2a`, bold for ≥1M pop): literal English translation from `name_eng` (e.g. "Osmanthus Forest" for Guilin)
+- **Bottom line** (full size, dark `#2a2a2a`, bold for ≥5M pop): literal English translation from `name_eng` (e.g. "Osmanthus Forest" for Guilin)
 
-Label placement: greedy bounding-box collision detection.
-- Candidates placed visibly, canvas drawn once for real font-metric bboxes
-- Cities accepted largest-first (allowlist cities: Hong Kong, Taipei always included)
-- Rejected labels hidden; zero overlaps guaranteed
+Font scale: 5 pt (1–3M pop) → 6 pt (3–5M) → 7 pt (5–10M) → 8 pt (10M+).
 
-Only cities shown that have **both** `name_eng` (Claude translation) **and** `name:en` or `name:pinyin` (romanisation), with population ≥ 1M (or in allowlist).
+Only cities shown that have **both** `name_eng` (Claude translation) **and** `name:en` or `name:pinyin` (romanisation), with population ≥ 1M (or in allowlist: Hong Kong, Taipei).
+
+**Label placement — current state and open problem:**
+
+Labels are placed in two stages:
+
+1. **Spatial thinning** (50 km radius): when two cities are closer than 50 km, the smaller one is dropped. Reduces ~180 candidates to ~141.
+2. **Cluster detection** (union-find, 150 km threshold): cities within 150 km form clusters (e.g. Pearl River Delta, Yangtze Delta). Each label gets a preferred direction — outward from its cluster centroid. Singletons fall back to the sparsest 45° density sector.
+3. **Physics**: labels are placed at `dot + clear_direction × INIT_OFFSET`, bboxes measured from the real renderer post-draw (important: `inv = ax.transData.inverted()` must be captured *after* `fig.canvas.draw()` due to `set_aspect("equal")` finalising the transform). Then a centrifugal attractor pulls cluster labels radially outward while pairwise repulsion resolves overlaps.
+
+**Known problem:** 141 two-line labels at China scale is too many for fully non-overlapping placement. The centrifugal approach gives good results for well-separated clusters (PRD goes south into the South China Sea) but dense central-China cities (Wuhan / Changsha / Nanchang belt) still overlap. The force-directed pairwise repulsion tends to push text boxes vertically (because text boxes are wide and short, so vertical is always the minimum-penetration axis), giving predominantly vertical leader lines regardless of the intended radial direction. This is the unsolved problem to continue in the next session.
+
+**Approaches tried and abandoned:**
+- `adjustText` library: too weak for this density
+- Greedy 4-quadrant placement with invisible texts: zero bboxes bug (must draw canvas first)
+- Force-directed repulsion without directional bias: all leaders end up vertical
+- Angular sweep (polar coordinates, 24 angles × 8 rounds): converges to one direction (north or east for everyone) because short text-box height makes N/S directions cheapest
+- Angular sweep with high angle cost (80k m/radian): forces preferred direction too strongly, all labels pile up in same region
+- Centrifugal attractor (current): better direction diversity for clusters, still has overlap in dense areas
 
 ## Palette
 
@@ -156,8 +171,10 @@ china-map/
 - [x] Standalone matplotlib render (`07_render_matplotlib.py`)
   - [x] Hillshade basemap via ArcGIS tile service (contextily)
   - [x] Two-line English labels (transliteration + literal translation)
-  - [x] Greedy bbox collision detection (zero label overlaps)
   - [x] Allowlist for Hong Kong, Taipei
+  - [x] Cluster-aware centrifugal label placement (radial leaders from cluster centroid)
+  - [x] Leader lines: dot → nearest bbox edge, skipped if < 10 km, linewidth 0.75
+  - [ ] **Label overlap in dense areas not fully solved** — see "Known problem" above
   - [ ] Road density tuning (secondary roads currently too noisy at China scale)
   - [ ] Province labels
   - [ ] River labels
