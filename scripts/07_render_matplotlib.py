@@ -371,13 +371,18 @@ def main():
     print(f"  label candidates: {len(city_info)}")
 
     # ── Stage 4: measure bboxes by rendering invisible placeholder texts ───────
+    # Note: texts must be visible=True here so matplotlib sets self._renderer
+    # during canvas.draw(); invisible texts return near-zero bboxes from
+    # get_window_extent(), causing the placement algorithm to think labels are
+    # tiny and placing them only ~6 km apart. They are removed after measurement
+    # so they never appear in the saved output.
     temp_texts = []
     for d in city_info:
         t = ax.text(d["cx"], d["cy"], d["translation"],
                     fontsize=d["sz_main"], color=COL_LABEL,
                     fontweight="bold" if d["bold"] else "normal",
                     ha="left", va="bottom",
-                    path_effects=buf, zorder=9, visible=False)
+                    path_effects=buf, zorder=9)
         temp_texts.append(t)
 
     fig.canvas.draw()
