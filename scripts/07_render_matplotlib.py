@@ -267,9 +267,9 @@ def main():
     CLUSTER_R  = 150_000   # cluster radius for clear-direction (m)
     PAD        = 0.10      # fractional padding on measured half-extents
     DOT_GAP    = 5_000     # clearance: dot centre → label-bbox near edge (m)
-    LEADER_MIN = 18_000    # draw leader only when dot→bbox-edge exceeds this (m)
-    N_ANG      = 16        # candidate angles (evenly spaced around dot)
-    R_MULTS    = [1.2, 2.0, 3.2, 5.0]   # radii as multiples of label half-diagonal
+    LEADER_MIN = 10_000    # draw leader only when dot→bbox-edge exceeds this (m)
+    N_ANG      = 24        # candidate angles (every 15° around dot)
+    C_MULTS    = [1.0, 1.8, 3.0, 5.0]   # clearance multipliers: r = k×r_edge(θ)+DOT_GAP
 
     # Scoring weights (all additive; lower = better)
     W_OVERLAP  = 500.0   # per overlapping placed label
@@ -438,90 +438,128 @@ def main():
         return True
 
     ANGLES  = [k * 2 * np.pi / N_ANG for k in range(N_ANG)]
-    placed  = []    # (cx, cy, hw, hh) confirmed label bboxes
+    placed  = []    # (cx, cy, hw, hh) confirmed label bboxes (parallel to results)
     results = []    # (cx, cy, hw, hh, city_info_dict) for final rendering
 
-    print(f"  greedy placement for {len(city_info)} labels...")
-    for i, d in enumerate(city_info):
-        hw = label_hw[i]
-        hh = label_hh[i]
-        half_diag    = np.hypot(hw, hh)
-        dot_x, dot_y = d["cx"], d["cy"]
-        pref_angle   = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
-
+    def _best_candidate(hw, hh, dot_x, dot_y, pref_angle, other_placed):
+        """Return (best_cx, best_cy, best_score) over all C_MULTS × ANGLES."""
+        hw_u = hw / (1 + PAD)   # unpadded half-extents for r_edge computation
+        hh_u = hh / (1 + PAD)
         best_score = float("inf")
         best_cx = best_cy = None
-
-        for r_mult in R_MULTS:
-            r = half_diag * r_mult + DOT_GAP
+        for k_mult in C_MULTS:
             for angle in ANGLES:
-                cx = dot_x + r * np.cos(angle)
-                cy = dot_y + r * np.sin(angle)
+                cos_a, sin_a = np.cos(angle), np.sin(angle)
+                # Distance from bbox centre to its edge in direction (cos_a, sin_a).
+                # At k_mult=1 the near edge lands exactly DOT_GAP from the dot
+                # regardless of angle — no leader needed.
+                r_edge = min(hw_u / max(abs(cos_a), 1e-10),
+                             hh_u / max(abs(sin_a), 1e-10))
+                r  = k_mult * r_edge + DOT_GAP
+                cx = dot_x + r * cos_a
+                cy = dot_y + r * sin_a
 
-                # Keep label inside map extent
                 if not (xmin + hw < cx < xmax - hw and
                         ymin + hh < cy < ymax - hh):
                     continue
 
-                # Overlap penalty: count of placed labels whose bbox intersects
                 overlap_pen = sum(
-                    1.0
-                    for (px, py, phw, phh) in placed
+                    1.0 for (px, py, phw, phh) in other_placed
                     if abs(cx - px) < hw + phw and abs(cy - py) < hh + phh
                 )
 
-                # Nearest point on candidate bbox to the dot (leader endpoint)
                 near_x = max(cx - hw, min(dot_x, cx + hw))
                 near_y = max(cy - hh, min(dot_y, cy + hh))
                 leader_len = np.hypot(near_x - dot_x, near_y - dot_y)
 
-                # Leader-crosses-placed-label penalty
                 cross_pen = 0.0
                 if leader_len > LEADER_MIN:
-                    for (px, py, phw, phh) in placed:
+                    for (px, py, phw, phh) in other_placed:
                         if _seg_clips_box(dot_x, dot_y, near_x, near_y,
                                           px - phw, py - phh,
                                           px + phw, py + phh):
                             cross_pen += 1.0
 
-                # Angular deviation from preferred clear direction (0–1)
                 ang_diff = abs(((angle - pref_angle + np.pi) % (2 * np.pi)) - np.pi)
                 dir_pen  = ang_diff / np.pi
 
                 score = (overlap_pen * W_OVERLAP
                          + cross_pen  * W_CROSS
-                         + r_mult     * W_DIST
+                         + k_mult     * W_DIST
                          + dir_pen    * W_DIR)
 
                 if score < best_score:
                     best_score = score
                     best_cx, best_cy = cx, cy
+        return best_cx, best_cy, best_score
 
-        if best_cx is None:   # all candidates out-of-bounds → place at dot
-            print(f"    FALLBACK (all candidates OOB): {d['translation']}")
+    # ── Greedy placement (population priority order) ───────────────────────────
+    print(f"  greedy placement for {len(city_info)} labels...")
+    for i, d in enumerate(city_info):
+        hw = label_hw[i]
+        hh = label_hh[i]
+        dot_x, dot_y = d["cx"], d["cy"]
+        pref_angle   = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+
+        best_cx, best_cy, _ = _best_candidate(hw, hh, dot_x, dot_y, pref_angle, placed)
+
+        if best_cx is None:
+            print(f"    FALLBACK (all OOB): {d['translation']}")
             best_cx, best_cy = dot_x, dot_y
 
         placed.append((best_cx, best_cy, hw, hh))
         results.append((best_cx, best_cy, hw, hh, d))
 
-    # ── DEBUG: final overlap audit ─────────────────────────────────────────────
-    n_at_dot = sum(
-        1 for (cx, cy, hw, hh, d) in results
-        if cx == d["cx"] and cy == d["cy"]
-    )
-    print(f"  labels at dot position (fallback): {n_at_dot}")
-    overlap_pairs = [
-        (d1["translation"], d2["translation"])
-        for i, (cx1, cy1, hw1, hh1, d1) in enumerate(results)
-        for j, (cx2, cy2, hw2, hh2, d2) in enumerate(results)
-        if j > i
-        and abs(cx1 - cx2) < hw1 + hw2
-        and abs(cy1 - cy2) < hh1 + hh2
-    ]
-    print(f"  overlapping pairs in final layout: {len(overlap_pairs)}")
-    for a, b in overlap_pairs[:15]:
-        print(f"    '{a}' ↔ '{b}'")
-    # ── END DEBUG ─────────────────────────────────────────────────────────────
+    # ── Relaxation pass: move displaced labels to adjacent slots ───────────────
+    # Gauss-Seidel style: remove label i, re-optimise against the remaining
+    # placed labels, accept if the leader shrinks by > 1 km. Repeat until
+    # convergence. This unwinds greedy cascades (A displaced B which displaced C…).
+    RELAX_ITER = 25
+    print(f"  relaxation ({RELAX_ITER} max rounds)...")
+    for relax_round in range(RELAX_ITER):
+        improved = 0
+        for i in range(len(results)):
+            cx_cur, cy_cur, hw, hh, d = results[i]
+            nx0 = max(cx_cur - hw, min(d["cx"], cx_cur + hw))
+            ny0 = max(cy_cur - hh, min(d["cy"], cy_cur + hh))
+            leader_cur = np.hypot(nx0 - d["cx"], ny0 - d["cy"])
+            if leader_cur <= LEADER_MIN:
+                continue   # already adjacent
+
+            dot_x, dot_y = d["cx"], d["cy"]
+            pref_angle = np.arctan2(d["clear_dir"][1], d["clear_dir"][0])
+            others = [placed[j] for j in range(len(placed)) if j != i]
+
+            best_cx_r, best_cy_r, _ = _best_candidate(
+                hw, hh, dot_x, dot_y, pref_angle, others)
+
+            if best_cx_r is not None:
+                nx = max(best_cx_r - hw, min(dot_x, best_cx_r + hw))
+                ny = max(best_cy_r - hh, min(dot_y, best_cy_r + hh))
+                leader_new = np.hypot(nx - dot_x, ny - dot_y)
+                if leader_new < leader_cur - 1_000:
+                    results[i] = (best_cx_r, best_cy_r, hw, hh, d)
+                    placed[i]  = (best_cx_r, best_cy_r, hw, hh)
+                    improved  += 1
+
+        if improved == 0:
+            print(f"    converged after {relax_round + 1} rounds")
+            break
+    else:
+        print(f"    did not converge after {RELAX_ITER} rounds")
+
+    # ── Placement summary ──────────────────────────────────────────────────────
+    with_leaders = []
+    for cx, cy, hw, hh, d in results:
+        nx = max(cx - hw, min(d["cx"], cx + hw))
+        ny = max(cy - hh, min(d["cy"], cy + hh))
+        llen = np.hypot(nx - d["cx"], ny - d["cy"])
+        if llen > LEADER_MIN:
+            with_leaders.append((llen / 1000, d["translation"]))
+    with_leaders.sort(reverse=True)
+    print(f"  labels with leader lines: {len(with_leaders)}")
+    for llen_km, name in with_leaders:
+        print(f"    {name}: {llen_km:.0f} km")
 
     # ── Stage 6: draw dots, leaders, labels, transliterations ─────────────────
     renderer = fig.canvas.get_renderer()
