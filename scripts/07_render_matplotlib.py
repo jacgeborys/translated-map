@@ -100,6 +100,25 @@ def _font_sizes(pop: float):
     return main, round(main * 0.75, 1)
 
 
+def _best_split(text: str) -> str:
+    """Split a multi-word string at the space nearest its character midpoint.
+
+    Returns the original string unchanged if it has fewer than two words or
+    no spaces.  The returned string contains a single '\\n' at the split point.
+    """
+    words = text.split()
+    if len(words) < 2:
+        return text
+    mid = len(text) / 2
+    pos, best_i, best_dist = 0, 1, float("inf")
+    for i in range(1, len(words)):
+        pos += len(words[i - 1]) + 1   # +1 for the space
+        dist = abs(pos - mid)
+        if dist < best_dist:
+            best_dist, best_i = dist, i
+    return " ".join(words[:best_i]) + "\n" + " ".join(words[best_i:])
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--dpi",  type=int,   default=200)
@@ -267,6 +286,7 @@ def main():
     DOT_GAP    = 5_000     # clearance: dot centre → label-bbox near edge (m)
     LEADER_MIN = 10_000    # draw leader only when dot→bbox-edge exceeds this (m)
     MAX_LEADER = 500_000   # revert to natural pos if leader would exceed this (m)
+    WRAP_THRESH_M = 200_000  # wrap translation to two lines if single-line width exceeds this (m)
     N_ANG      = 24        # candidate angles (every 15° around dot)
     C_MULTS    = [1.0, 1.8, 3.0, 5.0]   # clearance multipliers: r = k×r_edge(θ)+DOT_GAP
 
@@ -370,12 +390,9 @@ def main():
         })
     print(f"  label candidates: {len(city_info)}")
 
-    # ── Stage 4: measure bboxes by rendering invisible placeholder texts ───────
-    # Note: texts must be visible=True here so matplotlib sets self._renderer
-    # during canvas.draw(); invisible texts return near-zero bboxes from
-    # get_window_extent(), causing the placement algorithm to think labels are
-    # tiny and placing them only ~6 km apart. They are removed after measurement
-    # so they never appear in the saved output.
+    # ── Stage 4: measure bboxes (with optional two-line wrapping) ────────────
+    # Pass A: render single-line translations and draw once so matplotlib
+    # sets internal renderers (invisible texts return near-zero bboxes).
     temp_texts = []
     for d in city_info:
         t = ax.text(d["cx"], d["cy"], d["translation"],
@@ -389,16 +406,43 @@ def main():
     renderer = fig.canvas.get_renderer()
     inv = ax.transData.inverted()
 
+    # Pass B: wrap any translation whose single-line width exceeds WRAP_THRESH_M.
+    # Using \n in the text string halves the horizontal footprint at the cost
+    # of a taller bbox — a good trade in dense label clusters.
+    wrapped_any = False
+    for t, d in zip(temp_texts, city_info):
+        bb = t.get_window_extent(renderer=renderer)
+        x0d, _ = inv.transform((bb.x0, bb.y0))
+        x1d, _ = inv.transform((bb.x1, bb.y1))
+        w = abs(x1d - x0d)
+        if w > WRAP_THRESH_M and " " in d["translation"]:
+            wrapped = _best_split(d["translation"])
+            if "\n" in wrapped:
+                d["translation"] = wrapped
+                t.set_text(wrapped)
+                wrapped_any = True
+
+    if wrapped_any:
+        fig.canvas.draw()   # one extra draw to update extents for wrapped texts
+    n_wrapped = sum(1 for d in city_info if "\n" in d["translation"])
+    if n_wrapped:
+        print(f"  wrapped {n_wrapped} wide labels to two lines")
+
+    # Pass C: final bbox measurement for all labels.
     label_hw = []   # padded half-width in data units
     label_hh = []   # padded combined half-height (main + translit line)
-    for t in temp_texts:
+    for t, d in zip(temp_texts, city_info):
         bb = t.get_window_extent(renderer=renderer)
         x0d, y0d = inv.transform((bb.x0, bb.y0))
         x1d, y1d = inv.transform((bb.x1, bb.y1))
         w = abs(x1d - x0d)
-        h = abs(y1d - y0d) * 1.85   # expand to cover transliteration line above
+        h = abs(y1d - y0d)
+        # For single-line labels multiply by 1.85 to cover the transliteration
+        # line above.  For two-line labels the measured height already spans
+        # two lines, so a smaller factor (1.35) is enough.
+        h_factor = 1.35 if "\n" in d["translation"] else 1.85
         label_hw.append(w / 2 * (1 + PAD))
-        label_hh.append(h / 2 * (1 + PAD))
+        label_hh.append(h * h_factor / 2 * (1 + PAD))
 
     for t in temp_texts:
         t.remove()
