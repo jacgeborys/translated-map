@@ -1,59 +1,59 @@
-name_en,name_zh,lon,lat,category,priority,notes
-Shanghai,上海,121.4737,31.2304,city,1,Day 1–2 overnight
-Shanghai Pudong Airport,上海浦东国际机场,121.8047,31.1443,transport,1,Arrival/departure hub (PVG)
-Shanghai Hongqiao Station,上海虹桥站,121.3214,31.1946,transport,2,Day 2 evening – depart for Guilin G-train
-The Bund,外滩,121.4903,31.2397,attraction,1,Day 1 afternoon
-Yu Garden,豫园,121.4924,31.2275,attraction,2,Day 1 afternoon
-Nanjing Road,南京路,121.4726,31.2363,attraction,3,Day 1 evening
-Pudong / Lujiazui,陆家嘴,121.5023,31.2397,attraction,3,Skyline views from the Bund
-French Concession,法租界,121.4567,31.2165,attraction,2,Day 2 evening – Yongkang Lu / Wukang Road
-Suzhou,苏州,120.5853,31.2989,city,2,Day 2 – day trip from Shanghai (25 min by train)
-Humble Administrator's Garden,拙政园,120.6278,31.3246,attraction,1,Day 2 morning – go before 9am
-Pingjiang Road,平江路,120.6220,31.3175,attraction,2,Day 2 afternoon – canal street
-Tiger Hill,虎丘,120.5709,31.3473,attraction,3,Day 2 – optional
-Guilin,桂林,110.2995,25.2745,city,1,Day 3 overnight
-Elephant Trunk Hill,象鼻山,110.2883,25.2788,attraction,2,Day 3 afternoon
-Two Rivers Four Lakes (night cruise),两江四湖,110.2903,25.2850,attraction,1,Day 3 evening – lit pagodas reflected in water
-Solitary Beauty Peak,独秀峰,110.2978,25.2863,attraction,3,Day 3 – optional
-Zhujiang Pier (Li River cruise),竹江码头,110.0897,25.0628,transport,1,Day 4 – cruise departs 9am; 26 km south of Guilin city
-Yangshuo,阳朔,110.4914,24.7786,city,1,Day 4–5 overnight
-West Street,西街,110.4914,24.7786,attraction,3,Day 4 afternoon – touristy but lively
-Impression Liu Sanjie,印象刘三姐,110.4881,24.7617,attraction,1,Day 4 evening – Zhang Yimou outdoor light show; book ahead
-Yulong River (bamboo raft),遇龙河,110.4100,24.7800,attraction,1,Day 5 morning – quieter than Li River
-Dragon Bridge (Yulong),遇龙桥,110.4350,24.8300,attraction,3,Photo stop on Yulong River cycle route
-Ten Mile Gallery (cycling),十里画廊,110.5300,24.8100,attraction,1,Day 5 – must-do cycle through rice fields and karst peaks
-Moon Hill,月亮山,110.4740,24.7191,attraction,2,Day 5 – limestone arch on bike route
-Zhangjiajie,张家界,110.4791,29.1169,city,1,Day 6–7 overnight
-Tianmen Mountain,天门山,110.5022,29.0756,attraction,1,Day 7 – world's longest cable car; Heaven's Gate; glass walkway
-Wulingyuan / Avatar Mountains,武陵源,110.4316,29.3248,attraction,1,Day 6–7 – sandstone pillar forest (Avatar filming location)
-Zhangjiajie Grand Canyon + Glass Bridge,张家界大峡谷,110.2733,29.3442,attraction,3,40 km from city – only if extra time
-Tongren,铜仁,109.1894,27.7188,city,2,Day 8 overnight – transit hub for Fanjing Mountain
-Fanjing Mountain,梵净山,108.6883,27.9033,attraction,1,Day 8–9 – Red Clouds Golden Summit; twin-rock Buddhist temple at 2570 m
-Fanjing Mountain Cable Car Base,梵净山索道站,108.6900,27.9167,transport,2,Day 8 – base guesthouse; book ahead (limited options)
-Xijiang Miao Village,西江苗寨,107.9209,26.5067,city,1,Day 9 overnight – largest Miao village; terrace houses; drum tower
-Kaili,凯里,107.9777,26.5828,city,2,Day 9/10 – transit hub between Tongren / Xijiang and Chongqing
-Chongqing,重庆,106.5516,29.5630,city,1,Day 10 transit + hot pot dinner
-Hongya Cave,洪崖洞,106.5658,29.5597,attraction,1,Day 10 afternoon – riverside stilt houses
-Ciqikou Old Town,磁器口,106.4640,29.5715,attraction,2,Day 10 afternoon
-Chengdu,成都,104.0668,30.5728,city,1,Day 11 overnight
-Panda Base,大熊猫繁育研究基地,104.1368,30.7368,attraction,1,Day 11 morning – arrive before 9am; book online
-Jinli Ancient Street,锦里,104.0572,30.6450,attraction,2,Day 11 evening
-Wuhou Shrine,武侯祠,104.0481,30.6431,attraction,3,Day 11 evening – optional
-Leshan,乐山,103.7660,29.5552,city,2,Day 11 – half-day trip from Chengdu (~40 min by train)
-Leshan Giant Buddha,乐山大佛,103.7719,29.5447,attraction,1,Day 11 afternoon – 71 m stone Buddha; take the boat for full-body view
-Jiuzhaigou,九寨沟,103.9133,33.2200,city,1,Day 12–13 overnight
-Jiuhuang Airport,九黄机场,103.6822,32.8533,transport,2,Fly Chengdu Tianfu → Jiuhuang (45 min); or 5–6 h bus
-Nuorilang Waterfall,诺日朗瀑布,103.8958,33.1170,attraction,1,Day 12 afternoon – widest waterfall in China
-Shuzheng Waterfall,树正瀑布,103.9183,33.1459,attraction,2,Day 12 afternoon – Shuzheng Lakes trail
-Rhinoceros Lake,犀牛海,103.9100,33.1370,attraction,2,Day 12 – Shuzheng Lakes trail
-Reed Lake,芦苇海,103.9080,33.1430,attraction,3,Day 12 – Shuzheng Lakes trail
-Long Lake,长海,103.9178,33.1858,attraction,1,Day 13 morning – deepest lake in park
-Five Colour Lake,五彩池,103.8916,33.1496,attraction,1,Day 13 morning – most spectacular section
-Mirror Lake,镜海,103.9122,33.1650,attraction,2,Day 13 morning
-Hong Kong,香港,114.1694,22.3193,city,1,Day 13–14 overnight
-Guangzhou South Station,广州南站,113.2672,22.9753,transport,2,Transit: fly Jiuhuang → Guangzhou then train → HK West Kowloon (1 h)
-Tsim Sha Tsui,尖沙咀,114.1722,22.2988,attraction,2,Day 13 evening – waterfront
-Victoria Harbour,维多利亚港,114.1680,22.2936,attraction,1,Day 13 evening – Symphony of Lights show 8pm
-Temple Street Night Market,庙街,114.1718,22.3111,attraction,2,Day 13 evening
-Star Ferry,天星小轮,114.1686,22.2938,attraction,1,Day 14 morning – ¥3 crossing; best skyline view
-Man Mo Temple,文武庙,114.1506,22.2840,attraction,3,Day 14 – Hollywood Road; 1847 Taoist temple
+name_en,name_zh,lon,lat,category,priority,day_from,day_to,date_from,visit_order,notes
+Shanghai Pudong Airport,上海浦东国际机场,121.8047,31.1443,transport,1,1,1,Jun 24,1,Arrival hub (PVG); also departure Day 14
+The Bund,外滩,121.4903,31.2397,attraction,1,1,1,Jun 24,2,Afternoon + dusk views of Pudong
+Yu Garden,豫园,121.4924,31.2275,attraction,2,1,1,Jun 24,3,Old City bazaar
+Nanjing Road,南京路,121.4726,31.2363,attraction,3,1,1,Jun 24,4,Evening walking street
+Pudong / Lujiazui,陆家嘴,121.5023,31.2397,attraction,3,1,1,Jun 24,5,Skyline views from the Bund
+Shanghai,上海,121.4737,31.2304,city,1,1,2,Jun 24,6,2-night base
+Humble Administrator's Garden,拙政园,120.6278,31.3246,attraction,1,2,2,Jun 25,7,Day 2 morning – go before 9am
+Pingjiang Road,平江路,120.6220,31.3175,attraction,2,2,2,Jun 25,8,Canal street – lunch
+Tiger Hill,虎丘,120.5709,31.3473,attraction,3,2,2,Jun 25,9,Optional
+Suzhou,苏州,120.5853,31.2989,city,2,2,2,Jun 25,10,Day trip from Shanghai (25 min by train)
+French Concession,法租界,121.4567,31.2165,attraction,2,2,2,Jun 25,11,Evening – Yongkang Lu / Wukang Road
+Shanghai Hongqiao Station,上海虹桥站,121.3214,31.1946,transport,2,2,2,Jun 25,12,Evening departure for Guilin G-train (~7h)
+Guilin,桂林,110.2995,25.2745,city,1,3,3,Jun 26,13,Arrive ~3pm; overnight
+Elephant Trunk Hill,象鼻山,110.2883,25.2788,attraction,2,3,3,Jun 26,14,Afternoon
+Solitary Beauty Peak,独秀峰,110.2978,25.2863,attraction,3,3,3,Jun 26,15,Optional
+Two Rivers Four Lakes,两江四湖,110.2903,25.2850,attraction,1,3,3,Jun 26,16,Evening night cruise – lit pagodas and karst peaks
+Zhujiang Pier,竹江码头,110.0897,25.0628,transport,1,4,4,Jun 27,17,Li River cruise departs 9am; 26 km south of Guilin
+Yangshuo,阳朔,110.4914,24.7786,city,1,4,5,Jun 27,18,2-night base; cruise arrives ~1:30pm
+West Street,西街,110.4914,24.7786,attraction,3,4,4,Jun 27,19,Afternoon
+Impression Liu Sanjie,印象刘三姐,110.4881,24.7617,attraction,1,4,4,Jun 27,20,Evening outdoor light show – book ahead
+Yulong River,遇龙河,110.4100,24.7800,attraction,1,5,5,Jun 28,21,Morning bamboo raft – quieter than Li River
+Dragon Bridge,遇龙桥,110.4350,24.8300,attraction,3,5,5,Jun 28,22,Photo stop on bike route
+Ten Mile Gallery,十里画廊,110.5300,24.8100,attraction,1,5,5,Jun 28,23,Must-do cycle through rice fields and karst peaks
+Moon Hill,月亮山,110.4740,24.7191,attraction,2,5,5,Jun 28,24,Limestone arch on bike route
+Zhangjiajie,张家界,110.4791,29.1169,city,1,6,7,Jun 29,25,2-night base
+Wulingyuan / Avatar Mountains,武陵源,110.4316,29.3248,attraction,1,6,7,Jun 29,26,Sandstone pillar forest (Avatar filming location); 4-day park pass
+Tianmen Mountain,天门山,110.5022,29.0756,attraction,1,7,7,Jun 30,27,World's longest cable car; Heaven's Gate; glass walkway
+Zhangjiajie Grand Canyon,张家界大峡谷,110.2733,29.3442,attraction,3,7,7,Jun 30,28,40 km from city – only if extra time
+Tongren,铜仁,109.1894,27.7188,city,2,8,8,Jul 1,29,Transit hub for Fanjing Mountain
+Fanjing Mountain Cable Car Base,梵净山索道站,108.6900,27.9167,transport,2,8,9,Jul 1,30,Base guesthouse – book ahead (limited options); ~80 km from Tongren
+Fanjing Mountain,梵净山,108.6883,27.9033,attraction,1,8,9,Jul 1,31,Red Clouds Golden Summit at 2570 m; twin-rock Buddhist temple; best light at dawn
+Xijiang Miao Village,西江苗寨,107.9209,26.5067,city,1,9,9,Jul 2,32,Largest Miao village; terrace houses; drum tower; lanterns at dusk
+Kaili,凯里,107.9777,26.5828,city,2,9,10,Jul 2,33,Transit hub (train to Guiyang → Chongqing)
+Chongqing,重庆,106.5516,29.5630,city,1,10,10,Jul 3,34,Transit + mandatory hot pot dinner
+Hongya Cave,洪崖洞,106.5658,29.5597,attraction,1,10,10,Jul 3,35,Riverside stilt houses built into cliff
+Ciqikou Old Town,磁器口,106.4640,29.5715,attraction,2,10,10,Jul 3,36,Ancient trading town
+Chengdu,成都,104.0668,30.5728,city,1,11,11,Jul 4,37,Overnight base
+Panda Base,大熊猫繁育研究基地,104.1368,30.7368,attraction,1,11,11,Jul 4,38,Arrive before 9am; book online; pandas fed 8–10am
+Leshan,乐山,103.7660,29.5552,city,2,11,11,Jul 4,39,Half-day trip from Chengdu (~40 min by train)
+Leshan Giant Buddha,乐山大佛,103.7719,29.5447,attraction,1,11,11,Jul 4,40,71 m stone Buddha; take boat for full-body view
+Jinli Ancient Street,锦里,104.0572,30.6450,attraction,2,11,11,Jul 4,41,Evening
+Wuhou Shrine,武侯祠,104.0481,30.6431,attraction,3,11,11,Jul 4,42,Evening – optional
+Jiuhuang Airport,九黄机场,103.6822,32.8533,transport,2,12,12,Jul 5,43,Fly Chengdu Tianfu → Jiuhuang (45 min); check in 1.5h early
+Jiuzhaigou,九寨沟,103.9133,33.2200,city,1,12,13,Jul 5,44,2-night base; ~12000 visitor cap enforced – book 30 days ahead
+Nuorilang Waterfall,诺日朗瀑布,103.8958,33.1170,attraction,1,12,12,Jul 5,45,Widest waterfall in China
+Shuzheng Waterfall,树正瀑布,103.9183,33.1459,attraction,2,12,12,Jul 5,46,Shuzheng Lakes trail
+Rhinoceros Lake,犀牛海,103.9100,33.1370,attraction,2,12,12,Jul 5,47,Shuzheng Lakes trail
+Reed Lake,芦苇海,103.9080,33.1430,attraction,3,12,12,Jul 5,48,Shuzheng Lakes trail
+Long Lake,长海,103.9178,33.1858,attraction,1,13,13,Jul 6,49,Deepest lake; morning start
+Five Colour Lake,五彩池,103.8916,33.1496,attraction,1,13,13,Jul 6,50,Most spectacular section
+Mirror Lake,镜海,103.9122,33.1650,attraction,2,13,13,Jul 6,51,Morning
+Guangzhou South Station,广州南站,113.2672,22.9753,transport,2,13,13,Jul 6,52,Transit: fly Jiuhuang → Guangzhou → train to HK West Kowloon (1h)
+Hong Kong,香港,114.1694,22.3193,city,1,13,14,Jul 6,53,2-night base
+Tsim Sha Tsui,尖沙咀,114.1722,22.2988,attraction,2,13,13,Jul 6,54,Waterfront evening
+Victoria Harbour,维多利亚港,114.1680,22.2936,attraction,1,13,13,Jul 6,55,Symphony of Lights 8pm
+Temple Street Night Market,庙街,114.1718,22.3111,attraction,2,13,13,Jul 6,56,Evening night market
+Star Ferry,天星小轮,114.1686,22.2938,attraction,1,14,14,Jul 7,57,Morning – ¥3; best skyline view
+Man Mo Temple,文武庙,114.1506,22.2840,attraction,3,14,14,Jul 7,58,Hollywood Road
