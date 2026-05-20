@@ -30,7 +30,7 @@ LAYER = "itinerary_stops"
 
 COL_ORDER = [
     "id", "visit_order", "day",
-    "name_en", "name_zh", "city",
+    "name_en", "city",
     "priority", "cat_id", "cat_name",
     "status_id", "status_name",
     "detour", "half_day",
@@ -38,7 +38,7 @@ COL_ORDER = [
 ]
 
 def main():
-    df = pd.read_csv(SRC, dtype={
+    df = pd.read_csv(SRC, encoding="utf-8", dtype={
         "id": int, "day": int, "visit_order": int,
         "priority": int, "cat_id": int,
         "status_id": int, "detour": int, "half_day": int,

@@ -1,71 +1,67 @@
-id,name_en,name_zh,city,lon,lat,day,visit_order,priority,cat_id,cat_name,status_id,status_name,detour,half_day,notes
-1,The Bund,外滩,Shanghai,121.4900,31.2397,1,2,1,1,City/Skyline,1,Confirmed,0,2,"Colonial waterfront. Best at dusk and night — Pudong skyline across the river."
-2,Yu Garden + Old City Bazaar,豫园,Shanghai,121.4921,31.2270,1,3,1,3,Temple/Heritage,1,Confirmed,0,1,"Classical Ming garden inside busy bazaar. Go weekday morning."
-3,French Concession,法租界,Shanghai,121.4619,31.2177,2,7,2,1,City/Skyline,1,Confirmed,0,2,"Tree-lined streets, art deco. Yongkang Lu for dinner."
-4,Nanjing Road,南京路,Shanghai,121.4704,31.2359,1,4,3,1,City/Skyline,2,Optional,0,2,"Pedestrian shopping street. Touristy but sets the scale of Shanghai."
-5,Shanghai Museum,上海博物馆,Shanghai,121.4740,31.2297,0,0,3,4,Museum,2,Optional,0,1,"World-class Chinese art/antiquities. Free entry. Only if you have spare time."
-6,Humble Administrator's Garden,拙政园,Suzhou,120.6265,31.3237,2,5,1,3,Temple/Heritage,1,Confirmed,0,1,"Largest classical garden in China. UNESCO. Go 7:30am before crowds. ¥70."
-7,Pingjiang Road Canal,平江路,Suzhou,120.6282,31.3178,2,6,2,3,Temple/Heritage,1,Confirmed,0,1,"900-year-old canal street. Walk after garden."
-8,Tiger Hill Pagoda,虎丘,Suzhou,120.5864,31.3426,2,0,3,3,Temple/Heritage,2,Optional,0,1,"Leaning pagoda. Only if time allows after garden + canal."
-9,Two Rivers Four Lakes Cruise,两江四湖,Guilin,110.2876,25.2745,3,10,1,5,Activity,1,Confirmed,0,2,"Night cruise past lit pagodas and karst peaks. ¥150. Depart ~8pm."
-10,Elephant Trunk Hill,象鼻山,Guilin,110.2880,25.2816,3,9,2,2,Nature,1,Confirmed,0,2,"Iconic karst hill shaped like elephant drinking. ¥75."
-11,Reed Flute Cave,芦笛岩,Guilin,110.1564,25.3082,3,0,3,2,Nature,2,Optional,0,1,"Impressive stalactite cave with coloured lighting. 5km from centre."
-12,Longji Rice Terraces,龙脊梯田,Guilin,110.0752,25.7716,0,0,1,2,Nature,3,Missed/NextTrip,1,0,"Dragon's Backbone terraces climbing 800m. 2h from Guilin. Needs a dedicated day."
-13,Li River Cruise,漓江游览,Yangshuo,110.4944,24.7779,4,12,1,5,Activity,1,Confirmed,0,0,"83km cruise through karst landscape. The centrepiece of southern China. ¥210–330."
-14,Impression Liu Sanjie Show,印象刘三姐,Yangshuo,110.4847,24.7657,4,13,1,5,Activity,1,Confirmed,0,2,"Zhang Yimou outdoor show on Li River. Spectacular. ¥238. Book ahead."
-15,Ten Mile Gallery Cycling,十里画廊,Yangshuo,110.4800,24.7600,5,15,1,5,Activity,1,Confirmed,0,0,"Cycle through rice fields between limestone peaks. Best way to see the karst."
-16,Yulong River Bamboo Raft,遇龙河竹筏,Yangshuo,110.4033,24.8167,5,14,2,5,Activity,1,Confirmed,0,1,"Quieter than Li River. Morning mist. ¥150."
-17,Moon Hill,月亮山,Yangshuo,110.4870,24.7040,5,0,2,2,Nature,2,Optional,0,1,"Natural moon-shaped arch in limestone hill. Hike 20 min up."
-18,Dragon Bridge,遇龙桥,Yangshuo,110.4310,24.8520,5,0,3,3,Temple/Heritage,2,Optional,0,2,"Ancient stone bridge in karst countryside. Good for sunset photos."
-19,Wulingyuan Pillar Forest,武陵源,Zhangjiajie,110.4349,29.3251,6,16,1,2,Nature,1,Confirmed,0,0,"3000 sandstone pillars. The Avatar filming location. Park pass ¥248 (4 days)."
-20,Tianmen Mountain Temple,天门山寺,Zhangjiajie,110.5137,29.0500,7,17,1,3,Temple/Heritage,1,Confirmed,0,0,"Buddhist temple at summit, 1600 years old. The temple-on-rocks highlight of trip."
-21,Heaven's Gate (Tianmen Arch),天门洞,Zhangjiajie,110.5137,29.0680,7,18,1,2,Nature,1,Confirmed,0,0,"Natural arch through cliff face. 999 steps. Cable car ¥258."
-22,Cliff Glass Walkway,天门山玻璃栈道,Zhangjiajie,110.5100,29.0600,7,19,2,5,Activity,1,Confirmed,0,1,"Glass-floored walkway on Tianmen cliff edge. Vertigo-inducing."
-23,Zhangjiajie Glass Bridge,张家界大峡谷玻璃桥,Zhangjiajie,110.2958,29.1938,0,0,3,5,Activity,2,Optional,1,0,"World's longest glass bridge (430m). 40km from main park. Only if you want the adrenaline."
-24,Fenghuang Ancient Town,凤凰古城,Fenghuang,109.5993,27.9476,8,20,1,3,Temple/Heritage,1,Confirmed,0,0,"Preserved Miao/Tujia river town. Stilt houses over Tuojiang River. Entrance ¥148."
-25,Hong Bridge,虹桥,Fenghuang,109.5990,27.9472,8,21,2,3,Temple/Heritage,1,Confirmed,0,2,"Covered wind-and-rain bridge. Centre of the old town."
-26,City Wall Walk,古城墙,Fenghuang,109.5988,27.9480,8,0,2,3,Temple/Heritage,2,Optional,0,2,"Walk the restored Ming dynasty walls at dusk."
-27,Hongya Cave,洪崖洞,Chongqing,106.5737,29.5588,9,22,1,3,Temple/Heritage,1,Confirmed,0,2,"Riverside stilt district. Dramatic at night, lit up 11 stories down the cliff."
-28,Ciqikou Old Town,磁器口,Chongqing,106.4543,29.5645,9,23,2,3,Temple/Heritage,1,Confirmed,0,1,"Ming/Qing dynasty old street. Good food stalls. 30 min by metro."
-29,Liziba Metro Station,李子坝轻轨站,Chongqing,106.5147,29.5578,9,0,3,5,Activity,2,Optional,0,2,"Line 2 train runs through an apartment building. Worth seeing."
-30,Chongqing Hot Pot,重庆火锅,Chongqing,106.5516,29.5630,9,24,1,6,Food/Market,1,Confirmed,0,2,"The real Sichuan hot pot. Non-negotiable. Ask hostel for a local place."
-31,Dazu Rock Carvings,大足石刻,Chongqing,105.7136,29.6886,0,0,2,3,Temple/Heritage,2,Optional,1,0,"UNESCO Buddhist rock carvings. 2h from Chongqing. Requires dedicated half-day detour."
-32,Giant Panda Base,大熊猫繁育研究基地,Chengdu,104.1394,30.7367,10,25,1,2,Nature,1,Confirmed,0,1,"Go 7–8am for feeding. Book ticket online (¥58). Wear neutral colours."
-33,Leshan Giant Buddha,乐山大佛,Chengdu,103.7716,29.5443,10,26,1,3,Temple/Heritage,1,Confirmed,0,0,"71m stone Buddha carved into cliff. Boat ride gives best full-body view. Train 40min from Chengdu."
-34,Sanxingdui Museum,三星堆博物馆,Chengdu,104.0867,31.0264,0,0,1,4,Museum,3,Missed/NextTrip,0,0,"Bronze Age masks from an independent civilisation. New museum 2023. Unlike anything else in China."
-35,Wenshu Monastery,文殊院,Chengdu,104.0630,30.6695,10,0,2,3,Temple/Heritage,2,Optional,0,1,"Tang dynasty Buddhist monastery in city centre. Peaceful. Free."
-36,Wide and Narrow Alleys,宽窄巷子,Chengdu,104.0456,30.6700,10,0,3,3,Temple/Heritage,2,Optional,0,1,"Qing dynasty lanes, now restaurants and teahouses. Touristy but pleasant evening walk."
-37,Jinli Ancient Street,锦里,Chengdu,104.0514,30.6436,10,0,3,6,Food/Market,2,Optional,0,1,"Han dynasty-style street with snacks and lanterns. Good for an evening walk."
-38,Five Colour Lake,五彩池,Jiuzhaigou,103.9200,33.2100,12,30,1,2,Nature,1,Confirmed,0,0,"Impossibly turquoise lake. The single most photographed spot in Jiuzhaigou."
-39,Long Lake,长海,Jiuzhaigou,103.9167,33.2667,12,29,1,2,Nature,1,Confirmed,0,0,"Deepest lake in the valley. Stunning reflections. Go early morning."
-40,Nuorilang Waterfall,诺日朗瀑布,Jiuzhaigou,103.9167,33.1667,11,28,1,2,Nature,1,Confirmed,0,0,"Widest high-altitude waterfall in China. Impressive volume."
-41,Pearl Shoal Waterfall,珍珠滩瀑布,Jiuzhaigou,103.9100,33.1900,12,31,1,2,Nature,1,Confirmed,0,0,"Wide shallow waterfall over coloured mineral bed. Very photogenic."
-42,Shuzheng Lakes Trail,树正群海,Jiuzhaigou,103.9200,33.1700,11,27,1,2,Nature,1,Confirmed,0,0,"String of lakes connected by boardwalks. Best intro to the valley on Day 1."
-43,Mirror Lake,镜海,Jiuzhaigou,103.9150,33.2000,12,32,2,2,Nature,1,Confirmed,0,0,"Perfectly still lake. Perfect reflections of forest and sky."
-44,Huanglong Calcified Pools,黄龙钙华彩池,Jiuzhaigou,103.8187,32.7507,0,0,2,2,Nature,3,Missed/NextTrip,1,0,"UNESCO travertine terraces at 3500m. 2h from Jiuzhaigou. Best on a longer trip."
-45,Victoria Harbour,维多利亚港,Hong Kong,114.1722,22.2975,13,35,1,1,City/Skyline,1,Confirmed,0,2,"The HK postcard. Best at dusk. Light show 8pm."
-46,Victoria Peak,太平山顶,Hong Kong,114.1455,22.2759,13,36,1,1,City/Skyline,1,Confirmed,0,1,"Tram up, panoramic harbour view. Night view is spectacular. Essential."
-47,Star Ferry,天星小轮,Hong Kong,114.1688,22.2930,13,37,1,5,Activity,1,Confirmed,0,2,"HK$3. Best 5 minutes in Hong Kong. Kowloon→Central crossing."
-48,Man Mo Temple,文武庙,Hong Kong,114.1503,22.2843,14,39,2,3,Temple/Heritage,1,Confirmed,0,2,"1847 Taoist temple. Incense coils hanging from ceiling. Hollywood Road."
-49,Temple Street Night Market,庙街,Hong Kong,114.1708,22.3117,13,38,2,6,Food/Market,1,Confirmed,0,2,"Kowloon street market. Street food, fortune tellers, trinkets."
-50,Wong Tai Sin Temple,黄大仙祠,Hong Kong,114.1934,22.3427,0,0,2,3,Temple/Heritage,2,Optional,0,1,"Colourful Taoist temple. Locals come for fortune telling. Metro accessible."
-51,Tian Tan Buddha (Lantau),天坛大佛,Hong Kong,113.9055,22.2540,0,0,3,3,Temple/Heritage,2,Optional,1,0,"Giant outdoor Buddha on Lantau Island. Cable car up. Half-day trip."
-52,Chi Lin Nunnery,志莲净苑,Hong Kong,114.2013,22.3347,0,0,3,3,Temple/Heritage,2,Optional,0,1,"Tang dynasty-style wooden Buddhist nunnery. Nan Lian Garden adjacent. Free."
-53,Mount Fanjing,梵净山,Tongren,108.6850,27.8970,0,0,1,3,Temple/Heritage,4,Skipped/Future,1,0,"ARCHIVED. Twin quartzite pinnacles with Buddhist temple split across both peaks. UNESCO 2018. Dropped due to access difficulty — 2h car from Tongren + cable car. Save for dedicated Guizhou trip."
-54,Xijiang Miao Village,西江苗寨,Kaili,108.1070,26.4680,0,0,2,3,Temple/Heritage,4,Skipped/Future,1,0,"ARCHIVED. Largest Miao village in China. Terraced wooden houses, drum tower, traditional dress. 35km from Kaili. Replaced by Fenghuang which is on-route."
-55,Lijiang Old Town,丽江古城,Lijiang,100.2260,26.8720,0,0,1,3,Temple/Heritage,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). Naxi minority old town, UNESCO. Cobblestone streets, canals, Jade Dragon Snow Mountain backdrop. Worth a full Yunnan trip in Oct/Mar (dry season)."
-56,Tiger Leaping Gorge,虎跳峡,Lijiang,100.1300,27.1500,0,0,1,2,Nature,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). One of deepest gorges on earth — Jinsha River between two 5000m peaks. Classic 2-day backpacker hike. June/July is peak monsoon = landslide risk. Best Oct–Apr."
-57,Jade Dragon Snow Mountain,玉龙雪山,Lijiang,100.1960,27.1000,0,0,2,2,Nature,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). 5596m peak visible from Lijiang old town. Cable car to glacier at 4506m. Altitude sickness risk."
-58,Kunming,昆明,Kunming,102.7060,25.0460,0,0,3,1,City/Skyline,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). Yunnan capital and gateway city. Stone Forest (Shilin) 90min away. Mild climate year-round."
-59,Dali Old Town,大理古城,Dali,100.2670,25.6060,0,0,2,3,Temple/Heritage,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). Bai minority town on Erhai Lake with Three Pagodas backdrop. More relaxed than Lijiang. Natural starting point for a Yunnan itinerary."
-60,Shangri-La (Songzanlin Monastery),香格里拉/松赞林寺,Shangri-La,99.7060,27.8290,0,0,2,3,Temple/Heritage,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). Tibetan plateau town (3200m). Songzanlin Monastery — the 'Little Potala'. Strong temple magic. Combine with Dali + Lijiang on Yunnan trip."
-61,West Lake,西湖,Hangzhou,120.1470,30.2510,0,0,2,2,Nature,4,Skipped/Future,0,0,"DROPPED (itinerary too full). Classical Chinese landscape — causeways, pavilions, pagodas, willow shores. 25 min by high-speed from Shanghai. Easy day trip on a return visit."
-62,Guangzhou (Canton),广州,Guangzhou,113.2640,23.1290,0,0,3,1,City/Skyline,4,Skipped/Future,0,0,"DROPPED. Transit city on HK route. Best dim sum in China, Cantonese food capital. Good as a half-day layover but not worth a dedicated stop here."
-63,Shenzhen,深圳,Shenzhen,114.0580,22.5430,0,0,4,1,City/Skyline,4,Skipped/Future,0,0,"DROPPED. Modern tech city, Huaqiangbei electronics market, OCT Loft art district. Not worth diverting for on this trip."
-64,Zhangjiajie Glass Bridge (detour),张家界玻璃桥,Zhangjiajie,110.2960,29.1940,0,0,3,5,Activity,4,Skipped/Future,1,0,"DROPPED. World's longest glass bridge (430m). 40km from main Wulingyuan park — requires dedicated detour. Only if you specifically want the adrenaline."
-65,Wangxian Valley,望仙谷,Jiangxi,117.9000,28.9000,0,0,4,2,Nature,4,Skipped/Future,1,0,"DROPPED. Mountain village known for night illumination. Jiangxi province — detour between Shanghai and Guilin. Not enough payoff for the routing complexity."
-101,Shanghai Pudong Airport,上海浦东国际机场,Shanghai,121.8047,31.1443,1,1,1,7,Transport,1,Confirmed,0,0,"Arrival hub (PVG) Day 1; also departure Day 14."
-102,Shanghai Hongqiao Station,上海虹桥站,Shanghai,121.3214,31.1946,2,8,2,7,Transport,1,Confirmed,0,0,"Evening departure for Guilin G-train (~7h)."
-103,Zhujiang Pier,竹江码头,Guilin,110.0897,25.0628,4,11,1,7,Transport,1,Confirmed,0,0,"Li River cruise departs 9am; 26km south of Guilin city."
-104,Jiuhuang Airport,九黄机场,Jiuzhaigou,103.6822,32.8533,11,33,2,7,Transport,1,Confirmed,0,0,"Fly Chengdu Tianfu → Jiuhuang (45 min); check in 1.5h early."
-105,Guangzhou South Station,广州南站,Guangzhou,113.2672,22.9753,13,34,2,7,Transport,1,Confirmed,0,0,"Transit: fly Jiuhuang → Guangzhou → train to HK West Kowloon (1h)."
+id,name_en,city,lon,lat,day,visit_order,priority,cat_id,cat_name,status_id,status_name,detour,half_day,notes
+1,The Bund,Shanghai,121.49,31.2397,1,2,1,1,City/Skyline,1,Confirmed,0,2,Colonial waterfront. Best at dusk and night. Pudong skyline across the river.
+2,Yu Garden + Old City Bazaar,Shanghai,121.4921,31.227,1,3,1,3,Temple/Heritage,1,Confirmed,0,1,Classical Ming garden inside busy bazaar. Go weekday morning.
+3,French Concession,Shanghai,121.4619,31.2177,2,7,2,1,City/Skyline,1,Confirmed,0,2,"Tree-lined streets, art deco. Yongkang Lu for dinner."
+4,Nanjing Road,Shanghai,121.4704,31.2359,1,4,3,1,City/Skyline,2,Optional,0,2,Pedestrian shopping street. Touristy but sets the scale of Shanghai.
+5,Shanghai Museum,Shanghai,121.474,31.2297,0,0,3,4,Museum,2,Optional,0,1,World-class Chinese art/antiquities. Free entry. Only if you have spare time.
+6,Humble Administrator's Garden,Suzhou,120.6265,31.3237,2,5,1,3,Temple/Heritage,1,Confirmed,0,1,Largest classical garden in China. UNESCO. Go 7:30am before crowds. Y70.
+7,Pingjiang Road Canal,Suzhou,120.6282,31.3178,2,6,2,3,Temple/Heritage,1,Confirmed,0,1,900-year-old canal street. Walk after garden.
+8,Tiger Hill Pagoda,Suzhou,120.5864,31.3426,2,0,3,3,Temple/Heritage,2,Optional,0,1,Leaning pagoda. Only if time allows after garden + canal.
+9,Two Rivers Four Lakes Cruise,Guilin,110.2876,25.2745,3,10,1,5,Activity,1,Confirmed,0,2,Night cruise past lit pagodas and karst peaks. Y150. Depart ~8pm.
+10,Elephant Trunk Hill,Guilin,110.288,25.2816,3,9,2,2,Nature,1,Confirmed,0,2,Iconic karst hill shaped like elephant drinking. Y75.
+11,Reed Flute Cave,Guilin,110.1564,25.3082,3,0,3,2,Nature,2,Optional,0,1,Impressive stalactite cave with coloured lighting. 5km from centre.
+12,Longji Rice Terraces,Guilin,110.0752,25.7716,0,0,1,2,Nature,3,Missed/NextTrip,1,0,Dragon's Backbone terraces climbing 800m. 2h from Guilin. Needs a dedicated day.
+13,Li River Cruise,Yangshuo,110.4944,24.7779,4,12,1,5,Activity,1,Confirmed,0,0,83km cruise through karst landscape. The centrepiece of southern China. Y210-330.
+14,Impression Liu Sanjie Show,Yangshuo,110.4847,24.7657,4,13,1,5,Activity,1,Confirmed,0,2,Zhang Yimou outdoor show on Li River. Spectacular. Y238. Book ahead.
+15,Ten Mile Gallery Cycling,Yangshuo,110.48,24.76,5,15,1,5,Activity,1,Confirmed,0,0,Cycle through rice fields between limestone peaks. Best way to see the karst.
+16,Yulong River Bamboo Raft,Yangshuo,110.4033,24.8167,5,14,2,5,Activity,1,Confirmed,0,1,Quieter than Li River. Morning mist. Y150.
+17,Moon Hill,Yangshuo,110.487,24.704,5,0,2,2,Nature,2,Optional,0,1,Natural moon-shaped arch in limestone hill. Hike 20 min up.
+18,Dragon Bridge,Yangshuo,110.431,24.852,5,0,3,3,Temple/Heritage,2,Optional,0,2,Ancient stone bridge in karst countryside. Good for sunset photos.
+19,Wulingyuan Pillar Forest,Zhangjiajie,110.4349,29.3251,6,16,1,2,Nature,1,Confirmed,0,0,3000 sandstone pillars. The Avatar filming location. Park pass Y248 (4 days).
+20,Tianmen Mountain Temple,Zhangjiajie,110.5137,29.05,7,17,1,3,Temple/Heritage,1,Confirmed,0,0,"Buddhist temple at summit, 1600 years old. The temple-on-rocks highlight of trip."
+21,Heaven's Gate (Tianmen Arch),Zhangjiajie,110.5137,29.068,7,18,1,2,Nature,1,Confirmed,0,0,Natural arch through cliff face. 999 steps. Cable car Y258.
+22,Cliff Glass Walkway,Zhangjiajie,110.51,29.06,7,19,2,5,Activity,1,Confirmed,0,1,Glass-floored walkway on Tianmen cliff edge. Vertigo-inducing.
+23,Zhangjiajie Glass Bridge,Zhangjiajie,110.2958,29.1938,0,0,3,5,Activity,2,Optional,1,0,World's longest glass bridge (430m). 40km from main park. Only if you want the adrenaline.
+24,Fenghuang Ancient Town,Fenghuang,109.5993,27.9476,8,20,1,3,Temple/Heritage,1,Confirmed,0,0,Preserved Miao/Tujia river town. Stilt houses over Tuojiang River. Entrance Y148.
+25,Hong Bridge,Fenghuang,109.599,27.9472,8,21,2,3,Temple/Heritage,1,Confirmed,0,2,Covered wind-and-rain bridge. Centre of the old town.
+26,City Wall Walk,Fenghuang,109.5988,27.948,8,0,2,3,Temple/Heritage,2,Optional,0,2,Walk the restored Ming dynasty walls at dusk.
+27,Hongya Cave,Chongqing,106.5737,29.5588,9,22,1,3,Temple/Heritage,1,Confirmed,0,2,"Riverside stilt district. Dramatic at night, lit up 11 stories down the cliff."
+28,Ciqikou Old Town,Chongqing,106.4543,29.5645,9,23,2,3,Temple/Heritage,1,Confirmed,0,1,Ming/Qing dynasty old street. Good food stalls. 30 min by metro.
+29,Liziba Metro Station,Chongqing,106.5147,29.5578,9,0,3,5,Activity,2,Optional,0,2,Line 2 train runs through an apartment building. Worth seeing.
+30,Chongqing Hot Pot,Chongqing,106.5516,29.563,9,24,1,6,Food/Market,1,Confirmed,0,2,The real Sichuan hot pot. Non-negotiable. Ask hostel for a local place.
+31,Dazu Rock Carvings,Chongqing,105.7136,29.6886,0,0,2,3,Temple/Heritage,2,Optional,1,0,UNESCO Buddhist rock carvings. 2h from Chongqing. Requires dedicated half-day detour.
+32,Giant Panda Base,Chengdu,104.1394,30.7367,10,25,1,2,Nature,1,Confirmed,0,1,Go 7-8am for feeding. Book ticket online (Y58). Wear neutral colours.
+33,Leshan Giant Buddha,Chengdu,103.7716,29.5443,10,26,1,3,Temple/Heritage,1,Confirmed,0,0,71m stone Buddha carved into cliff. Boat ride gives best full-body view. Train 40min from Chengdu.
+34,Sanxingdui Museum,Chengdu,104.0867,31.0264,0,0,1,4,Museum,3,Missed/NextTrip,0,0,Bronze Age masks from an independent civilisation. New museum 2023. Unlike anything else in China.
+35,Wenshu Monastery,Chengdu,104.063,30.6695,10,0,2,3,Temple/Heritage,2,Optional,0,1,Tang dynasty Buddhist monastery in city centre. Peaceful. Free.
+36,Wide and Narrow Alleys,Chengdu,104.0456,30.67,10,0,3,3,Temple/Heritage,2,Optional,0,1,"Qing dynasty lanes, now restaurants and teahouses. Touristy but pleasant."
+37,Jinli Ancient Street,Chengdu,104.0514,30.6436,10,0,3,6,Food/Market,2,Optional,0,1,Han dynasty-style street with snacks and lanterns. Good for an evening walk.
+38,Five Colour Lake,Jiuzhaigou,103.92,33.21,12,30,1,2,Nature,1,Confirmed,0,0,Impossibly turquoise lake. The single most photographed spot in Jiuzhaigou.
+39,Long Lake,Jiuzhaigou,103.9167,33.2667,12,29,1,2,Nature,1,Confirmed,0,0,Deepest lake in the valley. Stunning reflections. Go early morning.
+40,Nuorilang Waterfall,Jiuzhaigou,103.9167,33.1667,11,28,1,2,Nature,1,Confirmed,0,0,Widest high-altitude waterfall in China. Impressive volume.
+41,Pearl Shoal Waterfall,Jiuzhaigou,103.91,33.19,12,31,1,2,Nature,1,Confirmed,0,0,Wide shallow waterfall over coloured mineral bed. Very photogenic.
+42,Shuzheng Lakes Trail,Jiuzhaigou,103.92,33.17,11,27,1,2,Nature,1,Confirmed,0,0,String of lakes connected by boardwalks. Best intro to the valley on Day 1.
+43,Mirror Lake,Jiuzhaigou,103.915,33.2,12,32,2,2,Nature,1,Confirmed,0,0,Perfectly still lake. Perfect reflections of forest and sky.
+44,Huanglong Calcified Pools,Jiuzhaigou,103.8187,32.7507,0,0,2,2,Nature,3,Missed/NextTrip,1,0,UNESCO travertine terraces at 3500m. 2h from Jiuzhaigou. Best on a longer trip.
+45,Victoria Harbour,Hong Kong,114.1722,22.2975,13,35,1,1,City/Skyline,1,Confirmed,0,2,The HK postcard. Best at dusk. Light show 8pm.
+46,Victoria Peak,Hong Kong,114.1455,22.2759,13,36,1,1,City/Skyline,1,Confirmed,0,1,"Tram up, panoramic harbour view. Night view is spectacular. Essential."
+47,Star Ferry,Hong Kong,114.1688,22.293,13,37,1,5,Activity,1,Confirmed,0,2,HK$3. Best 5 minutes in Hong Kong. Kowloon to Central crossing.
+48,Man Mo Temple,Hong Kong,114.1503,22.2843,14,39,2,3,Temple/Heritage,1,Confirmed,0,2,1847 Taoist temple. Incense coils hanging from ceiling. Hollywood Road.
+49,Temple Street Night Market,Hong Kong,114.1708,22.3117,13,38,2,6,Food/Market,1,Confirmed,0,2,"Kowloon street market. Street food, fortune tellers, trinkets."
+50,Wong Tai Sin Temple,Hong Kong,114.1934,22.3427,0,0,2,3,Temple/Heritage,2,Optional,0,1,Colourful Taoist temple. Locals come for fortune telling. Metro accessible.
+51,Tian Tan Buddha (Lantau),Hong Kong,113.9055,22.254,0,0,3,3,Temple/Heritage,2,Optional,1,0,Giant outdoor Buddha on Lantau Island. Cable car up. Half-day trip.
+52,Chi Lin Nunnery,Hong Kong,114.2013,22.3347,0,0,3,3,Temple/Heritage,2,Optional,0,1,Tang dynasty-style wooden Buddhist nunnery. Nan Lian Garden adjacent. Free.
+53,Mount Fanjing,Tongren,108.685,27.897,0,0,1,3,Temple/Heritage,4,Skipped/Future,1,0,ARCHIVED. Twin quartzite pinnacles with Buddhist temple. UNESCO 2018. Dropped due to access difficulty - 2h car from Tongren + cable car. Save for dedicated Guizhou trip.
+54,Xijiang Miao Village,Kaili,108.107,26.468,0,0,2,3,Temple/Heritage,4,Skipped/Future,1,0,"ARCHIVED. Largest Miao village in China. Terraced wooden houses, drum tower, traditional dress. 35km from Kaili. Replaced by Fenghuang."
+55,Lijiang Old Town,Lijiang,100.226,26.872,0,0,1,3,Temple/Heritage,4,Skipped/Future,0,0,"YUNNAN ARC (dropped). Naxi minority old town, UNESCO. Cobblestone streets, canals, Jade Dragon Snow Mountain backdrop. Worth a full Yunnan trip in Oct/Mar."
+56,Tiger Leaping Gorge,Lijiang,100.13,27.15,0,0,1,2,Nature,4,Skipped/Future,0,0,YUNNAN ARC (dropped). One of deepest gorges on earth. Classic 2-day backpacker hike. June/July monsoon = landslide risk. Best Oct-Apr.
+57,Jade Dragon Snow Mountain,Lijiang,100.196,27.1,0,0,2,2,Nature,4,Skipped/Future,0,0,YUNNAN ARC (dropped). 5596m peak visible from Lijiang old town. Cable car to glacier at 4506m. Altitude sickness risk.
+59,Dali Old Town,Dali,100.267,25.606,0,0,2,3,Temple/Heritage,4,Skipped/Future,0,0,YUNNAN ARC (dropped). Bai minority town on Erhai Lake with Three Pagodas backdrop. More relaxed than Lijiang.
+60,Shangri-La (Songzanlin Monastery),Shangri-La,99.706,27.829,0,0,2,3,Temple/Heritage,4,Skipped/Future,0,0,YUNNAN ARC (dropped). Tibetan plateau town (3200m). Songzanlin Monastery - the Little Potala. Strong temple magic.
+61,West Lake,Hangzhou,120.147,30.251,0,0,2,2,Nature,4,Skipped/Future,0,0,"DROPPED (itinerary too full). Classical Chinese landscape - causeways, pavilions, pagodas. 25 min by high-speed from Shanghai. Easy day trip on a return visit."
+65,Wangxian Valley,Jiangxi,117.9,28.9,0,0,4,2,Nature,4,Skipped/Future,1,0,DROPPED. Mountain village known for night illumination. Jiangxi province - detour between Shanghai and Guilin. Not enough payoff for routing complexity.
+101,Shanghai Pudong Airport,Shanghai,121.8047,31.1443,1,1,1,7,Transport,1,Confirmed,0,0,Arrival hub (PVG) Day 1; also departure Day 14.
+102,Shanghai Hongqiao Station,Shanghai,121.3214,31.1946,2,8,2,7,Transport,1,Confirmed,0,0,Evening departure for Guilin G-train (~7h).
+103,Zhujiang Pier,Guilin,110.0897,25.0628,4,11,1,7,Transport,1,Confirmed,0,0,Li River cruise departs 9am; 26km south of Guilin city.
+104,Jiuhuang Airport,Jiuzhaigou,103.6822,32.8533,11,33,2,7,Transport,1,Confirmed,0,0,Fly Chengdu Tianfu to Jiuhuang (45 min); check in 1.5h early.
+105,Guangzhou South Station,Guangzhou,113.2672,22.9753,13,34,2,7,Transport,1,Confirmed,0,0,Transit: fly Jiuhuang to Guangzhou then train to HK West Kowloon (1h).
