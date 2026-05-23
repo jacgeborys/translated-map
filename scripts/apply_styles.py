@@ -605,22 +605,26 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # Line 1: name:en transliteration
-    # Line 2: name_eng semantic translation
+    # Two block-level <p> elements so Qt correctly computes total bounding box height.
+    # Line 1 (small): name:en transliteration — 0.8× size, near-black
+    # Line 2 (big):   name_eng semantic translation — full size
     label_expr = (
         f"concat("
         f"  if(\"name_eng\" IS NOT NULL AND \"name:en\" IS NOT NULL,"
-        f"    concat(\"name:en\", '\\n'),"
+        f"    concat('<p style=\"font-size:', to_string({half_size_expr}), 'pt; color:#2a2a2a; margin:0\">', \"name:en\", '</p>'),"
         f"    ''"
         f"  ),"
-        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
+        f"  concat('<p style=\"font-size:', to_string({size_expr}), 'pt; margin:0\">',"
+        f"    coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\"),"
+        f"    '</p>')"
         f")"
     )
 
     lbl = QgsPalLayerSettings()
     lbl.isExpression = True
-    lbl.useHtml = False
+    lbl.useHtml = True
     lbl.fieldName = label_expr
+    lbl.multilineAlign = 0  # left
     lbl.setFormat(label_format(8.0))
     lbl.placement = QgsPalLayerSettings.OverPoint
     lbl.dist = dist_mm
