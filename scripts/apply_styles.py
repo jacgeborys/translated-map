@@ -605,15 +605,15 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # Main label: name_eng (semantic translation) — full size
-    # Small label above: name:en (transliteration) — only shown when a translation exists
+    # Line 1 (big):   name_eng semantic translation — inherits full label size
+    # Line 2 (small): name:en transliteration — only shown when translation exists
     html_label = (
         f"concat("
+        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\"),"
         f"  if(\"name_eng\" IS NOT NULL AND \"name:en\" IS NOT NULL,"
-        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name:en\", '</span><br>'),"
+        f"    concat('<br><span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name:en\", '</span>'),"
         f"    ''"
-        f"  ),"
-        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
+        f"  )"
         f")"
     )
 
