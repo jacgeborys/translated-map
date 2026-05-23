@@ -625,7 +625,6 @@ def _places_tr_lbl(dist_mm):
     lbl.placement = QgsPalLayerSettings.OverPoint
     lbl.dist = dist_mm
     lbl.distUnits = QgsUnitTypes.RenderMillimeters
-    lbl.autoWrapLength = 20
 
     props = lbl.dataDefinedProperties()
     props.setProperty(QgsPalLayerSettings.Size,     QgsProperty.fromExpression(size_expr))

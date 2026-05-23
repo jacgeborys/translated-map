@@ -102,7 +102,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
@@ -274,7 +274,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
@@ -446,7 +446,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
