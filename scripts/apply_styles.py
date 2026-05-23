@@ -26,7 +26,8 @@ from qgis.core import (
     QgsSymbolLayer,
     QgsSingleSymbolRenderer, QgsRuleBasedRenderer,
     QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings,
-    QgsVectorLayerSimpleLabeling, QgsProperty,
+    QgsVectorLayerSimpleLabeling, QgsRuleBasedLabeling, QgsProperty,
+    QgsUnitTypes,
     QgsHillshadeRenderer,
     QgsSingleBandGrayRenderer, QgsContrastEnhancement, QgsRasterTransparency,
     QgsRasterRange, QgsLabeling, QgsPalettedRasterRenderer,
@@ -560,6 +561,144 @@ def style_tourism(layer):
 
 
 # ---------------------------------------------------------------------------
+# places_translated — rule-based density labeling
+# ---------------------------------------------------------------------------
+# Label offset distances (mm) per neighbour-density tier.
+# Tier is determined by the count of other features within PLACES_TR_RADIUS degrees.
+PLACES_TR_DIST_ISOLATED = 2.0   # 0 neighbours
+PLACES_TR_DIST_FEW      = 6.0   # 1–2 neighbours
+PLACES_TR_DIST_CROWDED  = 16.0  # >2 neighbours
+PLACES_TR_CALLOUT_MIN   = 4.0   # show callout line when dist exceeds this (mm)
+PLACES_TR_RADIUS        = 0.2   # neighbour-search radius in degrees
+
+
+def _places_tr_lbl(dist_mm):
+    """Return QgsPalLayerSettings for one density tier of places_translated."""
+    pop = 'coalesce("population", 0)'
+
+    size_expr = (
+        f'CASE'
+        f' WHEN {pop} >= 5000000 THEN 15'
+        f' WHEN {pop} >= 1000000 THEN 12'
+        f' WHEN {pop} >=  500000 THEN 10'
+        f' WHEN {pop} >=  100000 THEN 7'
+        f' ELSE 8'
+        f' END'
+    )
+    half_size_expr = (
+        f'CASE'
+        f' WHEN {pop} >= 5000000 THEN 8'
+        f' WHEN {pop} >= 1000000 THEN 6'
+        f' WHEN {pop} >=  500000 THEN 5'
+        f' WHEN {pop} >=  100000 THEN 4'
+        f' ELSE 4'
+        f' END'
+    )
+    priority_expr = (
+        f'CASE'
+        f' WHEN {pop} >= 5000000 THEN 10'
+        f' WHEN {pop} >= 1000000 THEN 8'
+        f' WHEN {pop} >=  500000 THEN 6'
+        f' WHEN {pop} >=  100000 THEN 4'
+        f' ELSE 2'
+        f' END'
+    )
+    bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
+
+    # English waterfall using the translated column first
+    name_en = 'coalesce("name_eng", "name:en", "name:pinyin", "name")'
+    html_label = (
+        f"concat("
+        f"  if(\"name\" IS NOT NULL AND \"name\" != {name_en},"
+        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name\", '</span><br>'),"
+        f"    ''"
+        f"  ),"
+        f"  {name_en}"
+        f")"
+    )
+
+    lbl = QgsPalLayerSettings()
+    lbl.isExpression = True
+    lbl.useHtml = True
+    lbl.fieldName = html_label
+    lbl.setFormat(label_format(8.0))
+    lbl.placement = QgsPalLayerSettings.OverPoint
+    lbl.dist = dist_mm
+    lbl.distUnits = QgsUnitTypes.RenderMillimeters
+
+    props = lbl.dataDefinedProperties()
+    props.setProperty(QgsPalLayerSettings.Size,     QgsProperty.fromExpression(size_expr))
+    props.setProperty(QgsPalLayerSettings.Priority, QgsProperty.fromExpression(priority_expr))
+    props.setProperty(QgsPalLayerSettings.ZIndex,   QgsProperty.fromExpression(f'{pop} / 1000000'))
+    props.setProperty(QgsPalLayerSettings.Bold,     QgsProperty.fromExpression(bold_expr))
+    props.setProperty(QgsPalLayerSettings.Show,     QgsProperty.fromExpression('"place" = \'city\''))
+
+    if dist_mm > PLACES_TR_CALLOUT_MIN:
+        try:
+            from qgis.core import QgsSimpleLineCallout
+            callout = QgsSimpleLineCallout()
+            callout.lineSymbol().setColor(QColor("#2a2a2a"))
+            callout.lineSymbol().setWidth(0.2)
+            lbl.setCallout(callout)
+            lbl.calloutEnabled = True
+        except Exception as e:
+            log(f"    callout unavailable: {e}")
+
+    return lbl
+
+
+def style_places_translated(layer):
+    # ---- marker: same size-scaled circle as style_places ----
+    pop = 'coalesce("population", 0)'
+    marker_size_expr = (
+        f'CASE'
+        f' WHEN {pop} >= 5000000 THEN 2.5'
+        f' WHEN {pop} >= 1000000 THEN 2.0'
+        f' WHEN {pop} >=  500000 THEN 1.6'
+        f' WHEN {pop} >=  100000 THEN 1.0'
+        f' ELSE 0.7'
+        f' END'
+    )
+    sym = QgsMarkerSymbol()
+    sym.deleteSymbolLayer(0)
+    sl = QgsSimpleMarkerSymbolLayer.create({
+        "name": "circle",
+        "color": "#222222",
+        "outline_color": "#ffffff",
+        "outline_width": "0.35",
+        "size": "2.5",
+    })
+    sl.setDataDefinedProperty(
+        QgsSymbolLayer.PropertySize,
+        QgsProperty.fromExpression(marker_size_expr),
+    )
+    sym.appendSymbolLayer(sl)
+    layer.setRenderer(QgsSingleSymbolRenderer(sym))
+
+    # ---- rule-based labeling: 3 density tiers ----
+    r = PLACES_TR_RADIUS
+    nc = (
+        f"aggregate('places_translated','count',$id,"
+        f"distance($geometry,geometry(@parent))<{r}"
+        f" AND $id!=attribute(@parent,'fid'))"
+    )
+
+    root = QgsRuleBasedLabeling.Rule(None)
+    for desc, expr, dist in [
+        ("isolated",      f"{nc} = 0",               PLACES_TR_DIST_ISOLATED),
+        ("few neighbors", f"{nc} > 0 AND {nc} <= 2",  PLACES_TR_DIST_FEW),
+        ("crowded",       f"{nc} > 2",                PLACES_TR_DIST_CROWDED),
+    ]:
+        rule = QgsRuleBasedLabeling.Rule(_places_tr_lbl(dist))
+        rule.setFilterExpression(expr)
+        rule.setDescription(desc)
+        root.appendChild(rule)
+
+    layer.setLabeling(QgsRuleBasedLabeling(root))
+    layer.setLabelsEnabled(True)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -612,8 +751,9 @@ STYLERS = [
     ("roads",            style_roads),
     ("railways",         style_railways),
     ("train_stations",   style_train_stations),
-    ("places",           style_places),
-    ("tourism",          style_tourism),
+    ("places",             style_places),
+    ("places_translated",  style_places_translated),
+    ("tourism",            style_tourism),
 ]
 
 
