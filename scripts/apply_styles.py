@@ -585,13 +585,13 @@ def _places_tr_lbl(dist_mm):
         f' ELSE 8'
         f' END'
     )
-    half_size_expr = (
+    half_size_expr = (  # 0.8 × main size, for transliteration line
         f'CASE'
-        f' WHEN {pop} >= 5000000 THEN 8'
-        f' WHEN {pop} >= 1000000 THEN 6'
-        f' WHEN {pop} >=  500000 THEN 5'
-        f' WHEN {pop} >=  100000 THEN 4'
-        f' ELSE 4'
+        f' WHEN {pop} >= 5000000 THEN 12'
+        f' WHEN {pop} >= 1000000 THEN 10'
+        f' WHEN {pop} >=  500000 THEN 8'
+        f' WHEN {pop} >=  100000 THEN 6'
+        f' ELSE 6'
         f' END'
     )
     priority_expr = (
@@ -605,15 +605,15 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # Line 1 (big):   name_eng semantic translation — inherits full label size
-    # Line 2 (small): name:en transliteration — only shown when translation exists
+    # Line 1 (small): name:en transliteration — 0.8× size, near-black
+    # Line 2 (big):   name_eng semantic translation — full size
     html_label = (
         f"concat("
-        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\"),"
         f"  if(\"name_eng\" IS NOT NULL AND \"name:en\" IS NOT NULL,"
-        f"    concat('<br><span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name:en\", '</span>'),"
+        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#2a2a2a\">', \"name:en\", '</span><br>'),"
         f"    ''"
-        f"  )"
+        f"  ),"
+        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
         f")"
     )
 
@@ -625,6 +625,7 @@ def _places_tr_lbl(dist_mm):
     lbl.placement = QgsPalLayerSettings.OverPoint
     lbl.dist = dist_mm
     lbl.distUnits = QgsUnitTypes.RenderMillimeters
+    lbl.autoWrapLength = 20
 
     props = lbl.dataDefinedProperties()
     props.setProperty(QgsPalLayerSettings.Size,     QgsProperty.fromExpression(size_expr))

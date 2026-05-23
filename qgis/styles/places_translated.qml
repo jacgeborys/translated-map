@@ -32,7 +32,7 @@
               legendString="Aa" capitalization="0" fontWordSpacing="0"
               previewBkgrdColor="255,255,255,255" useSubstitutions="0"
               fontSizeUnit="Point" isExpression="1" fontKerning="1"
-              fieldName="concat(coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;), if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;br>&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 6 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 5 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 4 ELSE 4 END), 'pt; color:#888888&quot;>', &quot;name:en&quot;, '&lt;/span>'), ''))"
+              fieldName="concat(if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 12 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 10 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 6 ELSE 6 END), 'pt; color:#2a2a2a&quot;>', &quot;name:en&quot;, '&lt;/span>&lt;br>'), ''), coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;))"
               fontItalic="0" allowHtml="1" forcedItalic="0">
             <families/>
             <text-buffer bufferNoFill="1" bufferSizeUnits="MM"
@@ -102,7 +102,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
@@ -204,7 +204,7 @@
               legendString="Aa" capitalization="0" fontWordSpacing="0"
               previewBkgrdColor="255,255,255,255" useSubstitutions="0"
               fontSizeUnit="Point" isExpression="1" fontKerning="1"
-              fieldName="concat(coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;), if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;br>&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 6 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 5 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 4 ELSE 4 END), 'pt; color:#888888&quot;>', &quot;name:en&quot;, '&lt;/span>'), ''))"
+              fieldName="concat(if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 12 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 10 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 6 ELSE 6 END), 'pt; color:#2a2a2a&quot;>', &quot;name:en&quot;, '&lt;/span>&lt;br>'), ''), coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;))"
               fontItalic="0" allowHtml="1" forcedItalic="0">
             <families/>
             <text-buffer bufferNoFill="1" bufferSizeUnits="MM"
@@ -274,7 +274,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
@@ -376,7 +376,7 @@
               legendString="Aa" capitalization="0" fontWordSpacing="0"
               previewBkgrdColor="255,255,255,255" useSubstitutions="0"
               fontSizeUnit="Point" isExpression="1" fontKerning="1"
-              fieldName="concat(coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;), if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;br>&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 6 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 5 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 4 ELSE 4 END), 'pt; color:#888888&quot;>', &quot;name:en&quot;, '&lt;/span>'), ''))"
+              fieldName="concat(if(&quot;name_eng&quot; IS NOT NULL AND &quot;name:en&quot; IS NOT NULL, concat('&lt;span style=&quot;font-size:', to_string(CASE WHEN coalesce(&quot;population&quot;, 0) >= 5000000 THEN 12 WHEN coalesce(&quot;population&quot;, 0) >= 1000000 THEN 10 WHEN coalesce(&quot;population&quot;, 0) >= 500000 THEN 8 WHEN coalesce(&quot;population&quot;, 0) >= 100000 THEN 6 ELSE 6 END), 'pt; color:#2a2a2a&quot;>', &quot;name:en&quot;, '&lt;/span>&lt;br>'), ''), coalesce(&quot;name_eng&quot;, &quot;name:en&quot;, &quot;name:pinyin&quot;, &quot;name&quot;))"
               fontItalic="0" allowHtml="1" forcedItalic="0">
             <families/>
             <text-buffer bufferNoFill="1" bufferSizeUnits="MM"
@@ -446,7 +446,7 @@
           </text-style>
           <text-format addDirectionSymbol="0" decimals="3" wrapChar=""
               placeDirectionSymbol="0" leftDirectionSymbol="&lt;"
-              formatNumbers="0" autoWrapLength="0" reverseDirectionSymbol="0"
+              formatNumbers="0" autoWrapLength="20" reverseDirectionSymbol="0"
               multilineAlign="3" plussign="0" useMaxLineLengthForAutoWrap="1"
               rightDirectionSymbol=">"/>
           <placement placement="1" preserveRotation="1" polygonPlacementFlags="2"
