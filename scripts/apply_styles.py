@@ -605,7 +605,8 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # Line 1 (small): name:en transliteration — 0.8× size, near-black
+    # Both lines explicitly sized so QGIS computes the full bounding box correctly.
+    # Line 1 (small): name:en transliteration — 0.8× size, near-black, not bold
     # Line 2 (big):   name_eng semantic translation — full size
     html_label = (
         f"concat("
@@ -613,7 +614,9 @@ def _places_tr_lbl(dist_mm):
         f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#2a2a2a\">', \"name:en\", '</span><br>'),"
         f"    ''"
         f"  ),"
-        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
+        f"  concat('<span style=\"font-size:', to_string({size_expr}), 'pt\">',"
+        f"    coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\"),"
+        f"    '</span>')"
         f")"
     )
 
