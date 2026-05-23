@@ -605,15 +605,15 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # English waterfall using the translated column first
-    name_en = 'coalesce("name_eng", "name:en", "name:pinyin", "name")'
+    # Main label: name_eng (semantic translation) — full size
+    # Small label above: name:en (transliteration) — only shown when a translation exists
     html_label = (
         f"concat("
-        f"  if(\"name\" IS NOT NULL AND \"name\" != {name_en},"
-        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name\", '</span><br>'),"
+        f"  if(\"name_eng\" IS NOT NULL AND \"name:en\" IS NOT NULL,"
+        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#888888\">', \"name:en\", '</span><br>'),"
         f"    ''"
         f"  ),"
-        f"  {name_en}"
+        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
         f")"
     )
 
