@@ -605,25 +605,22 @@ def _places_tr_lbl(dist_mm):
     )
     bold_expr = f'CASE WHEN {pop} >= 1000000 THEN True ELSE False END'
 
-    # Both lines explicitly sized so QGIS computes the full bounding box correctly.
-    # Line 1 (small): name:en transliteration — 0.8× size, near-black, not bold
-    # Line 2 (big):   name_eng semantic translation — full size
-    html_label = (
+    # Line 1: name:en transliteration
+    # Line 2: name_eng semantic translation
+    label_expr = (
         f"concat("
         f"  if(\"name_eng\" IS NOT NULL AND \"name:en\" IS NOT NULL,"
-        f"    concat('<span style=\"font-size:', to_string({half_size_expr}), 'pt; color:#2a2a2a\">', \"name:en\", '</span><br>'),"
+        f"    concat(\"name:en\", '\\n'),"
         f"    ''"
         f"  ),"
-        f"  concat('<span style=\"font-size:', to_string({size_expr}), 'pt\">',"
-        f"    coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\"),"
-        f"    '</span>')"
+        f"  coalesce(\"name_eng\", \"name:en\", \"name:pinyin\", \"name\")"
         f")"
     )
 
     lbl = QgsPalLayerSettings()
     lbl.isExpression = True
-    lbl.useHtml = True
-    lbl.fieldName = html_label
+    lbl.useHtml = False
+    lbl.fieldName = label_expr
     lbl.setFormat(label_format(8.0))
     lbl.placement = QgsPalLayerSettings.OverPoint
     lbl.dist = dist_mm
