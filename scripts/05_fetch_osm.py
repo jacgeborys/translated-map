@@ -47,8 +47,8 @@ PER_TILE_SLEEP = 1.0  # seconds between tile requests (politeness)
 # Fallbacks: kumi and French mirror. Add more if needed.
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.openstreetmap.fr/api/interpreter",
+    # "https://overpass.kumi.systems/api/interpreter",
+    # "https://overpass.openstreetmap.fr/api/interpreter",
 ]
 
 
@@ -256,6 +256,12 @@ def query_overpass(query: str, columns=None, retries=None, delay=3):
             if r.status_code == 429:
                 print(f"429@{host}", end=" ", flush=True)
                 time.sleep(delay * 2)
+                continue
+            if r.status_code == 406:
+                # Overpass out-of-memory for this query — treat as timeout to trigger block splitting
+                saw_timeout = True
+                print(f"406(oom)@{host}", end=" ", flush=True)
+                time.sleep(delay)
                 continue
             if r.status_code == 504:
                 saw_timeout = True
