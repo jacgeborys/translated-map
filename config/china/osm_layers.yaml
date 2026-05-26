@@ -1,5 +1,5 @@
-# OSM layer definitions for southern China regional reference map.
-# Each layer is fetched via Overpass API with {bbox} substituted from config/aoi.geojson.
+# OSM layer definitions for China regional reference map.
+# Each layer is fetched via Overpass API with {bbox} substituted from project.yaml AOI.
 # `columns` filters OSM tags to keep (plus osm_id/osm_type always added).
 # China OSM coverage notes:
 #   - Urban detail is sparse; keep urban layers minimal.

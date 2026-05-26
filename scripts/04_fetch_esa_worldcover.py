@@ -31,7 +31,7 @@ try:
 except NameError:
     PROJECT_ROOT = Path(r"D:\QGIS\natgeo_map\china-map")
 
-AOI_PATH   = PROJECT_ROOT / "config" / "aoi.geojson"
+AOI_PATH   = PROJECT_ROOT / "config" / "china" / "aoi.geojson"
 INTERIM    = PROJECT_ROOT / "data" / "02_interim" / "esa"
 OUT_FILE   = PROJECT_ROOT / "data" / "03_processed" / "worldcover.tif"
 

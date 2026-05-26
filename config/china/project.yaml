@@ -1,0 +1,20 @@
+name: china
+description: "NatGeo-style reference map — eastern China (Yunnan to Heilongjiang)"
+
+aoi:
+  south: 18.0
+  west:  97.0
+  north: 55.0
+  east: 135.0
+
+# Comment out this section to skip OSM fetching
+fetch:
+  layers_config: osm_layers.yaml   # relative to this config folder
+
+# Comment out this section to skip translation
+translate:
+  layer: places
+  population_min: 1_000_000
+  languages:
+    - en
+    # - pl    # uncomment to re-enable Polish

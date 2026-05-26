@@ -15,6 +15,7 @@ Design (ported from dual_carriageways/fetch_roads.py):
     Max depth = 2 (so worst-case 16 sub-queries per parent tile).
 """
 
+import argparse
 import json
 import math
 import re
@@ -31,8 +32,6 @@ from shapely.geometry import (LineString, MultiLineString, MultiPolygon, Point,
 
 # --- Paths ---
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-AOI_PATH = PROJECT_ROOT / "config" / "aoi.geojson"
-LAYERS_YAML = PROJECT_ROOT / "config" / "osm_layers.yaml"
 OUT_DIR = PROJECT_ROOT / "data" / "01_raw" / "osm"
 TILE_CACHE_ROOT = OUT_DIR / "_tiles"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,8 +46,8 @@ PER_TILE_SLEEP = 1.0  # seconds between tile requests (politeness)
 # Fallbacks: kumi and French mirror. Add more if needed.
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.openstreetmap.fr/api/interpreter",
+    # "https://overpass.kumi.systems/api/interpreter",
+    # "https://overpass.openstreetmap.fr/api/interpreter",
 ]
 
 
@@ -336,14 +335,10 @@ def query_overpass(query: str, columns=None, retries=None, delay=3):
 # Driver
 # -----------------------------------------------------------------------------
 
-def load_aoi_bbox(path: Path):
-    """Return dict with south/west/north/east from AOI geojson."""
-    with open(path, "r", encoding="utf-8") as f:
-        gj = json.load(f)
-    coords = gj["features"][0]["geometry"]["coordinates"][0]
-    xs = [c[0] for c in coords]
-    ys = [c[1] for c in coords]
-    return {"south": min(ys), "west": min(xs), "north": max(ys), "east": max(xs)}
+def aoi_from_project(project_cfg: dict) -> dict:
+    """Return {south, west, north, east} from a loaded project.yaml dict."""
+    aoi = project_cfg["aoi"]
+    return {k: float(aoi[k]) for k in ("south", "west", "north", "east")}
 
 
 def bbox_to_overpass(b) -> str:
@@ -636,16 +631,38 @@ def fetch_layer(name, spec, aoi_bbox):
 
 
 def main():
-    print("OSM Fetcher — china-map")
-    print(f"Servers: {[s.split('/')[2] for s in OVERPASS_SERVERS]}")
-    print(f"Output: {OUT_DIR}\n")
+    parser = argparse.ArgumentParser(description="Fetch OSM layers for a project.")
+    parser.add_argument("--project", default="china",
+                        help="Project name — subfolder of config/ (default: china)")
+    parser.add_argument("--layer", default=None,
+                        help="Only fetch this one layer (default: all layers)")
+    parser.add_argument("--force", action="store_true",
+                        help="Delete existing merged .gpkg and rebuild from cache + Overpass")
+    args = parser.parse_args()
 
-    aoi_bbox = load_aoi_bbox(AOI_PATH)
-    print(f"AOI bbox (S,W,N,E): {bbox_to_overpass(aoi_bbox)}\n")
+    project_dir = PROJECT_ROOT / "config" / args.project
+    with open(project_dir / "project.yaml", encoding="utf-8") as f:
+        project_cfg = yaml.safe_load(f)
 
-    with open(LAYERS_YAML, "r", encoding="utf-8") as f:
+    aoi_bbox = aoi_from_project(project_cfg)
+
+    layers_yaml = project_dir / project_cfg.get("fetch", {}).get("layers_config", "osm_layers.yaml")
+    with open(layers_yaml, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-    layers = cfg["layers"]
+    all_layers = cfg["layers"]
+
+    if args.layer:
+        if args.layer not in all_layers:
+            print(f"Unknown layer '{args.layer}'. Available: {list(all_layers)}")
+            return
+        layers = {args.layer: all_layers[args.layer]}
+    else:
+        layers = all_layers
+
+    print(f"OSM Fetcher  |  project: {args.project}")
+    print(f"Servers: {[s.split('/')[2] for s in OVERPASS_SERVERS]}")
+    print(f"Output:  {OUT_DIR}")
+    print(f"AOI (S,W,N,E): {bbox_to_overpass(aoi_bbox)}\n")
 
     t0 = datetime.now()
     success = skipped = 0
@@ -653,8 +670,12 @@ def main():
 
     for i, (name, spec) in enumerate(layers.items(), 1):
         out_file = OUT_DIR / f"{name}.gpkg"
-        if out_file.exists():
-            print(f"[{i}/{total}] {name}... ⊙ exists, skip")
+
+        if out_file.exists() and args.force:
+            out_file.unlink()
+            print(f"[{i}/{total}] {name}... force-deleted, rebuilding")
+        elif out_file.exists():
+            print(f"[{i}/{total}] {name}... exists, skip  (--force to rebuild)")
             skipped += 1
             continue
 
@@ -663,15 +684,14 @@ def main():
         gdf = fetch_layer(name, spec, aoi_bbox)
 
         if gdf is None or gdf.empty:
-            print("⚠ no data")
+            print("no data")
             continue
 
-        # Dedup + hierarchy
         if "osm_id" in gdf.columns:
             before = len(gdf)
             gdf = gdf.drop_duplicates(subset=["osm_id"], keep="first")
             if before != len(gdf):
-                print(f"dedup {before}→{len(gdf)}...", end=" ")
+                print(f"dedup {before}->{len(gdf)}...", end=" ")
 
         hierarchy = spec.get("hierarchy")
         if hierarchy and "highway" in gdf.columns:
@@ -683,21 +703,21 @@ def main():
 
         gdf = gdf[gdf.geometry.notnull()]
         if gdf.empty:
-            print("⚠ no geoms")
+            print("no geoms")
             continue
 
         try:
             gdf.to_file(out_file, driver="GPKG")
-            print(f"✓ {len(gdf)} → {out_file.name}")
+            print(f"{len(gdf)} -> {out_file.name}")
             success += 1
         except Exception as e:
-            print(f"✗ save: {e}")
+            print(f"save error: {e}")
 
         time.sleep(3)
 
     elapsed = (datetime.now() - t0).total_seconds()
-    print(f"\n🎉 Done. {success} new, {skipped} skipped in {elapsed/60:.1f} min")
-    print(f"   Delete a .gpkg in {OUT_DIR} to re-fetch.")
+    print(f"\nDone. {success} new, {skipped} skipped in {elapsed/60:.1f} min")
+    print(f"Use --force --layer <name> to rebuild a single layer.")
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ def ensure_gdal_on_path():
 
 # --- Paths ---
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-AOI_PATH = PROJECT_ROOT / "config" / "aoi.geojson"
+AOI_PATH = PROJECT_ROOT / "config" / "china" / "aoi.geojson"
 RAW_DIR = PROJECT_ROOT / "data" / "01_raw" / "dem"
 INTERIM_DIR = PROJECT_ROOT / "data" / "02_interim"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
