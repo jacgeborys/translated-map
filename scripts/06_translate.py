@@ -28,6 +28,9 @@ import anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# Maps 2-letter lang codes to the column names used in QGIS styles
+LANG_COL = {"en": "name_eng", "pl": "name_pol"}
+
 SYSTEM = (
     "You are an expert in Classical and Modern Chinese and multiple modern languages. "
     "For each Chinese place name, give a literal translation of its semantic meaning — "
@@ -186,10 +189,10 @@ def main():
 
     # Apply translations to full GeoDataFrame
     for lang in languages:
-        col = f"name_{lang}"
+        col = LANG_COL.get(lang, f"name_{lang}")
         gdf[col] = gdf["name"].map(lambda n, _l=lang: cache.get(n, {}).get(_l))
 
-    filled = {lang: gdf[f"name_{lang}"].notna().sum() for lang in languages}
+    filled = {lang: gdf[LANG_COL.get(lang, f"name_{lang}")].notna().sum() for lang in languages}
     print(f"\nTranslated rows: { {f'name_{l}': n for l, n in filled.items()} }")
 
     print(f"Saving -> {output_gpkg.name}...")
