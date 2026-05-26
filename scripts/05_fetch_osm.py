@@ -671,13 +671,14 @@ def main():
     for i, (name, spec) in enumerate(layers.items(), 1):
         out_file = OUT_DIR / f"{name}.gpkg"
 
-        if out_file.exists() and args.force:
-            out_file.unlink()
-            print(f"[{i}/{total}] {name}... force-deleted, rebuilding")
-        elif out_file.exists():
-            print(f"[{i}/{total}] {name}... exists, skip  (--force to rebuild)")
-            skipped += 1
-            continue
+        if out_file.exists():
+            if args.force:
+                out_file.unlink()
+                print(f"[{i}/{total}] {name}... force-deleted, rebuilding")
+            else:
+                print(f"[{i}/{total}] {name}... exists, skip  (--force to rebuild)")
+                skipped += 1
+                continue
 
         print(f"[{i}/{total}] {name}...", end=" ", flush=True)
 

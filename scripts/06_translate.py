@@ -27,7 +27,6 @@ import yaml
 import anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CACHE_CSV = PROJECT_ROOT / "data" / "03_processed" / "translations_cache.csv"
 
 SYSTEM = (
     "You are an expert in Classical and Modern Chinese and multiple modern languages. "
@@ -85,24 +84,22 @@ def translate_batch(client, names, languages):
     return json.loads(raw)
 
 
-def load_cache(languages):
+def load_cache(cache_path, languages):
     """Load existing translation cache CSV. Returns dict: name -> {lang: translation}."""
-    cache = {}
-    if not CACHE_CSV.exists():
-        return cache
-    df = pd.read_csv(CACHE_CSV, dtype=str).fillna("")
-    for _, row in df.iterrows():
-        name = row.get("name", "")
-        if not name:
-            continue
-        cache[name] = {lang: row.get(lang, "") for lang in languages if lang in df.columns}
-    return cache
+    try:
+        df = pd.read_csv(cache_path, dtype=str).fillna("")
+    except FileNotFoundError:
+        return {}
+    available = [l for l in languages if l in df.columns]
+    if not available or "name" not in df.columns:
+        return {}
+    return df.dropna(subset=["name"]).set_index("name")[available].to_dict("index")
 
 
-def save_cache(cache):
+def save_cache(cache, cache_path):
     """Write the full cache back to CSV."""
     rows = [{"name": k, **v} for k, v in cache.items()]
-    pd.DataFrame(rows).to_csv(CACHE_CSV, index=False, encoding="utf-8")
+    pd.DataFrame(rows).to_csv(cache_path, index=False, encoding="utf-8")
 
 
 def main():
@@ -126,13 +123,14 @@ def main():
     pop_min    = int(translate_cfg.get("population_min", 0))
     languages  = translate_cfg.get("languages", ["en"])
 
-    input_gpkg = PROJECT_ROOT / "data" / "01_raw" / "osm" / f"{layer}.gpkg"
+    input_gpkg  = PROJECT_ROOT / "data" / "01_raw" / "osm" / f"{layer}.gpkg"
     output_gpkg = PROJECT_ROOT / "data" / "03_processed" / f"{layer}_translated.gpkg"
+    cache_path  = PROJECT_ROOT / "data" / "03_processed" / f"{args.project}_translations_cache.csv"
 
     print(f"Project:   {args.project}")
     print(f"Layer:     {layer}  (pop >= {pop_min:,})")
     print(f"Languages: {languages}")
-    print(f"Cache:     {CACHE_CSV.name}")
+    print(f"Cache:     {cache_path.name}")
 
     load_api_key()
     client = anthropic.Anthropic()
@@ -143,7 +141,7 @@ def main():
         gdf["population"] = pd.to_numeric(gdf["population"], errors="coerce").astype("Int64")
 
     # Load translation cache
-    cache = load_cache(languages)
+    cache = load_cache(cache_path, languages)
     print(f"Cache loaded: {len(cache)} existing translations")
 
     # Find candidates
@@ -163,23 +161,22 @@ def main():
         batches = [new_names[i:i + args.batch] for i in range(0, len(new_names), args.batch)]
         for i, batch in enumerate(batches):
             print(f"  Batch {i + 1}/{len(batches)} ({len(batch)} names)...", end=" ", flush=True)
-            try:
-                result = translate_batch(client, batch, languages)
-                cache.update(result)
-                print(f"OK ({len(result)} translated)")
-            except Exception as e:
-                print(f"ERROR: {e} — retrying...")
-                time.sleep(3)
+            for attempt in range(2):
                 try:
                     result = translate_batch(client, batch, languages)
                     cache.update(result)
-                    print(f"  Retry OK ({len(result)})")
-                except Exception as e2:
-                    print(f"  Retry failed: {e2} — skipping batch")
+                    save_cache(cache, cache_path)
+                    print(f"OK ({len(result)} translated)")
+                    break
+                except Exception as e:
+                    if attempt == 0:
+                        print(f"ERROR: {e} — retrying...")
+                        time.sleep(3)
+                    else:
+                        print(f"Retry failed: {e} — skipping batch")
             time.sleep(0.3)
 
-        save_cache(cache)
-        print(f"\nCache saved: {len(cache)} total translations -> {CACHE_CSV.name}")
+        print(f"\nCache saved: {len(cache)} total translations -> {cache_path.name}")
 
         print("\nNewly translated (sample):")
         for name in list(new_names)[:15]:
@@ -190,7 +187,7 @@ def main():
     # Apply translations to full GeoDataFrame
     for lang in languages:
         col = f"name_{lang}"
-        gdf[col] = gdf["name"].map(lambda n: cache.get(n, {}).get(lang))
+        gdf[col] = gdf["name"].map(lambda n, _l=lang: cache.get(n, {}).get(_l))
 
     filled = {lang: gdf[f"name_{lang}"].notna().sum() for lang in languages}
     print(f"\nTranslated rows: { {f'name_{l}': n for l, n in filled.items()} }")
