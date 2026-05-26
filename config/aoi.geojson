@@ -7,15 +7,15 @@
       "type": "Feature",
       "properties": {
         "name": "china",
-        "note": "China: Yunnan, Guizhou, Guangxi, Guangdong, Hainan, Hunan, Jiangxi, Fujian, Zhejiang, Jiangsu, Shanghai and adjacent areas."
+        "note": "China: all eastern provinces from Hainan/Yunnan in the south to Heilongjiang in the northeast, including Beijing, Tianjin, Shenyang, Harbin and surrounding areas."
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
           [ 97.0, 18.0],
-          [123.0, 18.0],
-          [123.0, 34.0],
-          [ 97.0, 34.0],
+          [135.0, 18.0],
+          [135.0, 55.0],
+          [ 97.0, 55.0],
           [ 97.0, 18.0]
         ]]
       }
