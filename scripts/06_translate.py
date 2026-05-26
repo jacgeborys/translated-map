@@ -126,9 +126,12 @@ def main():
     pop_min    = int(translate_cfg.get("population_min", 0))
     languages  = translate_cfg.get("languages", ["en"])
 
-    input_gpkg  = PROJECT_ROOT / "data" / "01_raw" / "osm" / f"{layer}.gpkg"
-    output_gpkg = PROJECT_ROOT / "data" / "03_processed" / f"{layer}_translated.gpkg"
-    cache_path  = PROJECT_ROOT / "data" / "03_processed" / f"{args.project}_translations_cache.csv"
+    project_data = PROJECT_ROOT / "data" / "03_processed" / args.project
+    project_data.mkdir(parents=True, exist_ok=True)
+
+    input_gpkg  = PROJECT_ROOT / "data" / "01_raw" / "osm" / args.project / f"{layer}.gpkg"
+    output_gpkg = project_data / f"{layer}_translated.gpkg"
+    cache_path  = project_data / "translations_cache.csv"
 
     print(f"Project:   {args.project}")
     print(f"Layer:     {layer}  (pop >= {pop_min:,})")

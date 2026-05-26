@@ -191,8 +191,10 @@ def main():
     if not downloaded:
         raise SystemExit("No DEM tiles downloaded — check AOI / network.")
 
-    vrt_path = INTERIM_DIR / "dem_4326.vrt"
-    out_tif = INTERIM_DIR / "dem.tif"
+    china_interim = INTERIM_DIR / "china"
+    china_interim.mkdir(parents=True, exist_ok=True)
+    vrt_path = china_interim / "dem_4326.vrt"
+    out_tif  = china_interim / "dem.tif"
     warp_cmd = [
         "gdalwarp",
         "-overwrite",

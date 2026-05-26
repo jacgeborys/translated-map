@@ -4,8 +4,12 @@ Fetch ESA WorldCover 2021 (v200) land cover for the project AOI.
 Uses GDAL /vsicurl/ streaming so only the pixels covering the AOI are
 transferred — no 400 MB full tiles saved locally.
 
+Each 3°×3° clip is saved immediately to data/02_interim/<project>/esa/.
+If the script is interrupted, already-downloaded clips are preserved and
+reused on the next run. The final merge only re-runs when new clips appear.
+
 Outputs:
-  data/03_processed/worldcover.tif
+  data/03_processed/<project>/worldcover.tif
     Single-band Byte, ESRI:102012, all ESA classes preserved.
     Styling (which classes are shown) is handled in apply_styles.py.
 
@@ -18,6 +22,7 @@ Add the resulting file as a layer named 'worldcover' in your QGIS project,
 placed between the ocean layer and the hillshade layer.
 """
 
+import argparse
 import os
 import shutil
 import subprocess
@@ -30,13 +35,6 @@ try:
     PROJECT_ROOT = Path(__file__).resolve().parents[1]
 except NameError:
     PROJECT_ROOT = Path(r"D:\QGIS\natgeo_map\china-map")
-
-AOI_PATH   = PROJECT_ROOT / "config" / "china" / "aoi.geojson"
-INTERIM    = PROJECT_ROOT / "data" / "02_interim" / "esa"
-OUT_FILE   = PROJECT_ROOT / "data" / "03_processed" / "worldcover.tif"
-
-INTERIM.mkdir(parents=True, exist_ok=True)
-OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 BASE_URL = (
     "https://esa-worldcover.s3.eu-central-1.amazonaws.com"
@@ -82,11 +80,6 @@ def run(cmd):
         raise SystemExit(f"command failed: {cmd[0]}")
 
 
-def aoi_bounds_wgs84():
-    gdf = gpd.read_file(AOI_PATH).to_crs("EPSG:4326")
-    return gdf.total_bounds  # (minx, miny, maxx, maxy)
-
-
 def tile_names(minx, miny, maxx, maxy):
     """Return list of (tile_name, sw_lat, sw_lon) for ESA WorldCover tiles covering bbox."""
     tiles = []
@@ -103,37 +96,44 @@ def tile_names(minx, miny, maxx, maxy):
 # ---------------------------------------------------------------------------
 
 def main():
-    if OUT_FILE.exists():
-        print(f"✓ already exists: {OUT_FILE}")
-        return
+    parser = argparse.ArgumentParser(description="Fetch ESA WorldCover for a project AOI.")
+    parser.add_argument("--project", default="china",
+                        help="Project name — subfolder of config/ (default: china)")
+    args = parser.parse_args()
+
+    aoi_path = PROJECT_ROOT / "config" / args.project / "aoi.geojson"
+    interim  = PROJECT_ROOT / "data" / "02_interim" / args.project / "esa"
+    out_file = PROJECT_ROOT / "data" / "03_processed" / args.project / "worldcover.tif"
+    interim.mkdir(parents=True, exist_ok=True)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
 
     ensure_gdal()
     if not shutil.which("gdalwarp"):
         raise SystemExit("gdalwarp not found. Install QGIS/OSGeo4W or set GDAL_BIN.")
 
-    minx, miny, maxx, maxy = aoi_bounds_wgs84()
-    tiles = tile_names(minx, miny, maxx, maxy)
-    print(f"AOI: {minx:.2f} {miny:.2f} {maxx:.2f} {maxy:.2f}  →  {len(tiles)} tiles")
+    gdf = gpd.read_file(aoi_path).to_crs("EPSG:4326")
+    minx, miny, maxx, maxy = gdf.total_bounds
+    all_tiles = tile_names(minx, miny, maxx, maxy)
 
-    # Step 1: stream each tile clipped to its own 3°×3° extent (intersected with AOI).
-    # Keeping tile-sized clips (not full-AOI) means each file is small, the merge
-    # step gets non-overlapping inputs, and gdalbuildvrt/gdalwarp work correctly.
-    clipped = []
-    for tile, lat, lon in tiles:
+    print(f"Project: {args.project}")
+    print(f"AOI: {minx:.1f} {miny:.1f} {maxx:.1f} {maxy:.1f}  |  {len(all_tiles)} ESA tiles\n")
+
+    new_clips = 0
+    for i, (tile, lat, lon) in enumerate(all_tiles, 1):
         te_west  = max(lon,     minx)
         te_south = max(lat,     miny)
         te_east  = min(lon + 3, maxx)
         te_north = min(lat + 3, maxy)
         if te_east <= te_west or te_north <= te_south:
-            continue  # tile only touches the AOI boundary — no real overlap
-
-        out = INTERIM / f"clip_{tile}.tif"
-        if out.exists():
-            print(f"  ✓ cached {tile}")
-            clipped.append(out)
             continue
+
+        out = interim / f"clip_{tile}.tif"
+        if out.exists():
+            print(f"  [{i:>3}/{len(all_tiles)}] {tile}  cached")
+            continue
+
         url = f"{BASE_URL}/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
-        print(f"  ↓ streaming {tile}...")
+        print(f"  [{i:>3}/{len(all_tiles)}] {tile}  downloading...", end=" ", flush=True)
         r = subprocess.run(
             [
                 "gdalwarp",
@@ -148,20 +148,31 @@ def main():
         )
         if r.returncode != 0:
             if "404" in r.stderr or "Failed to open" in r.stderr:
-                print(f"  ⊘ {tile} not in dataset (ocean/missing) — skipping")
+                print("not in dataset (ocean/missing)")
                 out.unlink(missing_ok=True)
             else:
+                print("FAILED", file=sys.stderr)
                 print(r.stderr, file=sys.stderr)
                 raise SystemExit(f"gdalwarp failed for {tile}")
             continue
-        clipped.append(out)
 
-    # Step 2: merge tile-sized clips + reproject + downsample in one pass.
-    # Inputs are now small (each ~3°×3° at 10m) so this is fast.
-    print(f"  merging + reprojecting to ESRI:102012 @ {REPROJECT_RES_M}m...")
+        new_clips += 1
+        print(f"done ({out.stat().st_size / (1 << 20):.0f} MB)")
+
+    # Collect all available clips — including those from previous interrupted runs
+    clipped = sorted(interim.glob("clip_*.tif"))
+    if not clipped:
+        raise SystemExit("No clips available — check AOI / network.")
+
+    if out_file.exists() and new_clips == 0:
+        print(f"\nAll tiles cached and {out_file.name} is up to date — nothing to do.")
+        return
+
+    print(f"\nMerging {len(clipped)} clip(s) + reprojecting to ESRI:102012 @ {REPROJECT_RES_M}m...")
     run([
         "gdalwarp",
         "--config", "GDAL_CACHEMAX", "1024",
+        "-overwrite",
         "-t_srs", "ESRI:102012",
         "-tr", str(REPROJECT_RES_M), str(REPROJECT_RES_M),
         "-r", "near",
@@ -172,22 +183,21 @@ def main():
         "-co", "COMPRESS=DEFLATE",
         "-co", "TILED=YES",
         "-co", "BIGTIFF=IF_SAFER",
-    ] + [str(p) for p in clipped] + [str(OUT_FILE)])
+    ] + [str(p) for p in clipped] + [str(out_file)])
 
-    # Step 4: build overview pyramids so QGIS can render at any zoom level.
-    print("  building overviews (gdaladdo)...")
+    print("Building overviews...")
     run([
         "gdaladdo",
         "--config", "COMPRESS_OVERVIEW", "DEFLATE",
         "-r", "nearest",
-        str(OUT_FILE),
+        str(out_file),
         "2", "4", "8", "16", "32", "64", "128", "256", "512", "1024",
     ])
 
-    print(f"\n✓ WorldCover raster ready: {OUT_FILE}")
-    print("  → Load this file into QGIS FIVE times, naming the layers:")
-    print("      wc_trees  wc_cropland  wc_builtup  wc_wetland  wc_mangroves")
-    print("    Then run apply_styles.py to apply per-class paletted renderers.")
+    print(f"\nWorldCover ready: {out_file}")
+    print("Load into QGIS five times, naming the layers:")
+    print("  wc_trees  wc_cropland  wc_builtup  wc_wetland  wc_mangroves")
+    print("Then run apply_styles.py to apply per-class paletted renderers.")
 
 
 if __name__ == "__main__":

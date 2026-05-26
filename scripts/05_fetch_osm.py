@@ -46,8 +46,8 @@ PER_TILE_SLEEP = 1.0  # seconds between tile requests (politeness)
 # Fallbacks: kumi and French mirror. Add more if needed.
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
-    # "https://overpass.kumi.systems/api/interpreter",
-    # "https://overpass.openstreetmap.fr/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter",
 ]
 
 
@@ -659,9 +659,12 @@ def main():
     else:
         layers = all_layers
 
+    out_dir = PROJECT_ROOT / "data" / "01_raw" / "osm" / args.project
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     print(f"OSM Fetcher  |  project: {args.project}")
     print(f"Servers: {[s.split('/')[2] for s in OVERPASS_SERVERS]}")
-    print(f"Output:  {OUT_DIR}")
+    print(f"Output:  {out_dir}")
     print(f"AOI (S,W,N,E): {bbox_to_overpass(aoi_bbox)}\n")
 
     t0 = datetime.now()
@@ -669,7 +672,7 @@ def main():
     total = len(layers)
 
     for i, (name, spec) in enumerate(layers.items(), 1):
-        out_file = OUT_DIR / f"{name}.gpkg"
+        out_file = out_dir / f"{name}.gpkg"
 
         if out_file.exists():
             if args.force:
