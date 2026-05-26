@@ -47,8 +47,8 @@ PER_TILE_SLEEP = 1.0  # seconds between tile requests (politeness)
 # Fallbacks: kumi and French mirror. Add more if needed.
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
-    # "https://overpass.kumi.systems/api/interpreter",
-    # "https://overpass.openstreetmap.fr/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter",
 ]
 
 
@@ -514,7 +514,9 @@ def fetch_block_recursive(spec, tiles, cols, depth=0):
 
     bbox = _block_bbox(tiles)
     query = spec["query"].format(bbox=bbox_to_overpass(bbox))
-    gdf, status = query_overpass(query, columns=cols)
+    # Fail fast on block queries (2 attempts) so we split quickly on OOM/timeout.
+    # Full retries are reserved for single-tile fetches in fetch_tile_recursive.
+    gdf, status = query_overpass(query, columns=cols, retries=2)
 
     if status == "ok" and gdf is not None and not gdf.empty:
         results = []
