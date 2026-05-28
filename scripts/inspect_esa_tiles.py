@@ -34,6 +34,7 @@ def main():
     minx, miny, maxx, maxy = gdf_aoi.total_bounds
 
     cached = {p.stem.replace("clip_", "") for p in interim.glob("clip_*.tif")}
+    ocean  = {p.stem.replace("clip_", "") for p in interim.glob("clip_*.ocean")}
 
     rows = []
     for lat in range(int(miny // 3) * 3, int(maxy // 3) * 3 + 3, 3):
@@ -47,9 +48,15 @@ def main():
             lat_s = f"N{lat:02d}" if lat >= 0 else f"S{abs(lat):02d}"
             lon_s = f"E{lon:03d}" if lon >= 0 else f"W{abs(lon):03d}"
             name = f"{lat_s}{lon_s}"
+            if name in cached:
+                status = "cached"
+            elif name in ocean:
+                status = "ocean"
+            else:
+                status = "missing"
             rows.append({
                 "tile":     name,
-                "status":   "cached" if name in cached else "missing",
+                "status":   status,
                 "geometry": box(lon, lat, lon + 3, lat + 3),
             })
 
@@ -57,12 +64,15 @@ def main():
     result.to_file(out_gpkg, driver="GPKG")
 
     total   = len(result)
-    missing = (result["status"] == "missing").sum()
+    n_cached  = (result["status"] == "cached").sum()
+    n_ocean   = (result["status"] == "ocean").sum()
+    n_missing = (result["status"] == "missing").sum()
     print(f"Total expected tiles: {total}")
-    print(f"Cached:  {total - missing}")
-    print(f"Missing: {missing}")
-    if missing:
-        print("\nMissing tiles:")
+    print(f"Cached:  {n_cached}")
+    print(f"Ocean:   {n_ocean}")
+    print(f"Missing: {n_missing}")
+    if n_missing:
+        print("\nMissing tiles (not yet fetched):")
         for t in result.loc[result["status"] == "missing", "tile"]:
             print(f"  {t}")
     print(f"\nSaved -> {out_gpkg}")

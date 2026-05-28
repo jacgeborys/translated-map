@@ -128,6 +128,9 @@ def main():
             continue
 
         out = interim / f"clip_{tile}.tif"
+        if out.with_suffix(".ocean").exists():
+            print(f"  [{i:>3}/{len(all_tiles)}] {tile}  ocean/absent (cached)")
+            continue
         if out.exists():
             print(f"  [{i:>3}/{len(all_tiles)}] {tile}  cached")
             continue
@@ -148,8 +151,9 @@ def main():
         )
         if r.returncode != 0:
             if "404" in r.stderr or "Failed to open" in r.stderr:
-                print("not in dataset (ocean/missing)")
+                print("ocean/absent")
                 out.unlink(missing_ok=True)
+                out.with_suffix(".ocean").touch()
             else:
                 print("FAILED", file=sys.stderr)
                 print(r.stderr, file=sys.stderr)
