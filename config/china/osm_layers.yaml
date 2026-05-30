@@ -9,9 +9,9 @@
 layers:
 
   roads:
-    # Tertiary dropped — too noisy at provincial scale. Add back here if you want it.
+    # Secondary and above only. Tertiary and below dropped — too noisy at provincial scale.
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         way["highway"="motorway"]({bbox});
         way["highway"="trunk"]({bbox});
@@ -35,7 +35,7 @@ layers:
 
   railways:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         way["railway"="rail"]({bbox});
       );
@@ -44,22 +44,9 @@ layers:
     columns: [railway, name, "name:en", "name:zh", usage, service, bridge, tunnel, layer, electrified, highspeed, maxspeed]
     tile_size_deg: 2.0
 
-  train_stations:
-    query: |
-      [out:json][timeout:120];
-      (
-        node["railway"="station"]({bbox});
-        node["railway"="halt"]({bbox});
-        way["railway"="station"]({bbox});
-        relation["railway"="station"]({bbox});
-      );
-      out geom;
-    columns: [railway, name, "name:en", "name:zh", "name:pinyin", station, operator, train]
-    tile_size_deg: 4.0
-
   rivers:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         way["waterway"="river"]({bbox});
         way["waterway"="canal"]({bbox});
@@ -70,7 +57,7 @@ layers:
 
   water_bodies:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         way["natural"="water"]({bbox});
         relation["natural"="water"]({bbox});
@@ -81,7 +68,7 @@ layers:
 
   admin_country:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         relation["boundary"="administrative"]["admin_level"="2"]({bbox});
       );
@@ -90,7 +77,7 @@ layers:
 
   admin_province:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         relation["boundary"="administrative"]["admin_level"="4"]({bbox});
       );
@@ -99,7 +86,7 @@ layers:
 
   admin_prefecture:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         relation["boundary"="administrative"]["admin_level"="6"]({bbox});
       );
@@ -108,7 +95,7 @@ layers:
 
   places:
     query: |
-      [out:json][timeout:120];
+      [out:json][timeout:60];
       (
         node["place"="city"]({bbox});
         node["place"="town"]({bbox});
@@ -119,22 +106,9 @@ layers:
     int_columns: [population]
     tile_size_deg: 2.0
 
-  tourism:
-    # Fetch everything tourism=*. We will filter out hotels/info/etc. downstream.
-    query: |
-      [out:json][timeout:180];
-      (
-        node["tourism"]({bbox});
-        way["tourism"]({bbox});
-        relation["tourism"]({bbox});
-      );
-      out geom;
-    columns: [tourism, name, "name:en", "name:zh", "name:pinyin", website, wikidata, wikipedia, operator, ref]
-    tile_size_deg: 1.0
-
   protected_areas:
     query: |
-      [out:json][timeout:180];
+      [out:json][timeout:60];
       (
         way["boundary"="national_park"]({bbox});
         relation["boundary"="national_park"]({bbox});

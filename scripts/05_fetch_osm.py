@@ -40,14 +40,13 @@ TILE_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
 DEFAULT_TILE_SIZE_DEG = 1.0
 MAX_SUBDIVISION_DEPTH = 2
 MAX_BLOCK_SIDE = 8   # max side length (in tiles) of a rectangular fetch block
+MAX_BLOCK_TILES = 32  # max total tiles per block query
 PER_TILE_SLEEP = 1.0  # seconds between tile requests (politeness)
 
 # Server rotation. Primary: overpass-api.de (slot checker supported, most capable).
 # Fallbacks: kumi and French mirror. Add more if needed.
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.openstreetmap.fr/api/interpreter",
 ]
 
 
@@ -246,7 +245,7 @@ def query_overpass(query: str, columns=None, retries=None, delay=3):
         host = url.split("/")[2]
 
         try:
-            r = requests.post(url, data={"data": query}, timeout=200)
+            r = requests.post(url, data={"data": query}, timeout=90)
 
             if r.status_code == 403:
                 _bad_servers.add(url)
@@ -461,7 +460,7 @@ def _form_blocks(tiles, tile_size):
     # Try largest rectangles first (greedy)
     shapes = sorted(
         [(w, h) for w in range(1, MAX_BLOCK_SIDE + 1)
-         for h in range(1, MAX_BLOCK_SIDE + 1) if w * h >= 2],
+         for h in range(1, MAX_BLOCK_SIDE + 1) if 2 <= w * h <= MAX_BLOCK_TILES],
         key=lambda wh: wh[0] * wh[1],
         reverse=True,
     )
