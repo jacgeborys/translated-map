@@ -256,11 +256,10 @@ def query_overpass(query: str, columns=None, retries=None, delay=3):
                 time.sleep(delay * 2)
                 continue
             if r.status_code == 406:
-                # Overpass out-of-memory for this query — treat as timeout to trigger block splitting
+                # Overpass OOM — retrying the same query won't help; break immediately to trigger split
                 saw_timeout = True
                 print(f"406(oom)@{host}", end=" ", flush=True)
-                time.sleep(delay)
-                continue
+                break
             if r.status_code == 504:
                 saw_timeout = True
                 print(f"504@{host}", end=" ", flush=True)
@@ -328,6 +327,33 @@ def query_overpass(query: str, columns=None, retries=None, delay=3):
             time.sleep(delay)
 
     return (None, "timeout" if saw_timeout else "fail")
+
+
+# -----------------------------------------------------------------------------
+# Ocean mask — pre-filter tiles that are fully in open ocean
+# -----------------------------------------------------------------------------
+
+_ocean_union = None
+_ocean_loaded = False
+
+
+def _get_ocean_mask():
+    """Return a unified shapely geometry of world ocean, or None if unavailable."""
+    global _ocean_union, _ocean_loaded
+    if _ocean_loaded:
+        return _ocean_union
+    _ocean_loaded = True
+    ocean_path = PROJECT_ROOT / "data" / "01_raw" / "ocean" / "ne_10m_ocean.gpkg"
+    if not ocean_path.exists():
+        return None
+    try:
+        from shapely.ops import unary_union
+        gdf = gpd.read_file(ocean_path)
+        _ocean_union = unary_union(gdf.geometry)
+        print(f"[ocean mask loaded: {ocean_path.name}]")
+    except Exception as e:
+        print(f"[ocean mask load failed: {e}]")
+    return _ocean_union
 
 
 # -----------------------------------------------------------------------------
@@ -576,6 +602,26 @@ def fetch_layer(name, spec, aoi_bbox):
             continue
 
         uncached.append(tile)
+
+    if not uncached:
+        if not parts:
+            return None
+        return gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), geometry="geometry", crs="EPSG:4326")
+
+    # ── Skip tiles fully within ocean ────────────────────────────────────────
+    ocean = _get_ocean_mask()
+    if ocean is not None:
+        land_tiles, skipped = [], 0
+        for tile in uncached:
+            tile_box = shapely_box(tile["west"], tile["south"], tile["east"], tile["north"])
+            if tile_box.within(ocean):
+                (tile_dir / f"{tile['id']}.empty").touch()
+                skipped += 1
+            else:
+                land_tiles.append(tile)
+        if skipped:
+            print(f"  [ocean pre-filter: {skipped} tile(s) skipped]")
+        uncached = land_tiles
 
     if not uncached:
         if not parts:
